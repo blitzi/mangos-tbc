@@ -65,8 +65,8 @@ void UnitAI::MoveInLineOfSight(Unit* who)
     if (m_unit->IsNeutralToAll())
         return;
 
-    if (who->GetObjectGuid().IsCreature() && who->IsInCombat())
-        CheckForHelp(who, m_unit, 10.0);
+    /*if (who->GetObjectGuid().IsCreature() && who->IsInCombat())
+        CheckForHelp(who, m_unit, 1);*/
 
     if (!HasReactState(REACT_AGGRESSIVE)) // mobs who are aggressive can still assist
         return;
