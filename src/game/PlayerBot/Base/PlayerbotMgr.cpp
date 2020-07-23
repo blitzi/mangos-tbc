@@ -1073,20 +1073,22 @@ bool ChatHandler::HandlePlayerbotCommand(char* args)
         return false;
 
     ObjectGuid guid = sObjectMgr.GetPlayerGuidByName(charnameStr.c_str());
-    if (guid == ObjectGuid() || (guid == m_session->GetPlayer()->GetObjectGuid()))
+	ObjectGuid playerGuid = m_session->GetPlayer()->GetObjectGuid();
+
+    if (guid == ObjectGuid() || (guid == playerGuid))
     {
         SendSysMessage(LANG_PLAYER_NOT_FOUND);
         SetSentErrorMessage(true);
         return false;
     }
 
-    uint32 accountId = sObjectMgr.GetPlayerAccountIdByGUID(guid);
+    /*uint32 accountId = sObjectMgr.GetPlayerAccountIdByGUID(guid);
     if (accountId != m_session->GetAccountId())
     {
         PSendSysMessage("|cffff0000You may only add bots from the same account.");
         SetSentErrorMessage(true);
         return false;
-    }
+    }*/
 
     // create the playerbot manager if it doesn't already exist
     PlayerbotMgr* mgr = m_session->GetPlayer()->GetPlayerbotMgr();
@@ -1154,8 +1156,11 @@ bool ChatHandler::HandlePlayerbotCommand(char* args)
             SetSentErrorMessage(true);
             return false;
         }
+
+
+
         CharacterDatabase.DirectPExecute("UPDATE characters SET online = 1 WHERE guid = '%u'", guid.GetCounter());
-        mgr->LoginPlayerBot(guid);
+        mgr->LoginExternalPlayerBot(guid, playerGuid);
         PSendSysMessage("Bot added successfully.");
     }
     else if (cmdStr == "remove" || cmdStr == "logout")

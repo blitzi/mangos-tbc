@@ -138,11 +138,11 @@ class CharacterHandler
 
             WorldSession* masterSession = sWorld.FindSession(lqh->GetAccountId());
 
-            if (! masterSession || sObjectMgr.GetPlayer(lqh->GetGuid()))
+            /*if (! masterSession || sObjectMgr.GetPlayer(lqh->GetGuid()))
             {
                 delete holder;
                 return;
-            }
+            }*/
 
             // The bot's WorldSession is owned by the bot's Player object
             // The bot's WorldSession is deleted by PlayerbotMgr::LogoutPlayerBot
@@ -558,6 +558,26 @@ void PlayerbotMgr::LoginPlayerBot(ObjectGuid playerGuid)
     }
     CharacterDatabase.DelayQueryHolder(&chrHandler, &CharacterHandler::HandlePlayerBotLoginCallback, holder);
 }
+
+void PlayerbotMgr::LoginExternalPlayerBot(ObjectGuid ownerGuid, ObjectGuid playerGuid)
+{
+	// has bot already been added?
+	if (sObjectMgr.GetPlayer(playerGuid))
+		return;
+
+	uint32 accountId = sObjectMgr.GetPlayerAccountIdByGUID(playerGuid);
+	if (accountId == 0)
+		return;
+
+	LoginQueryHolder* holder = new LoginQueryHolder(accountId, playerGuid);
+	if (!holder->Initialize())
+	{
+		delete holder;                                      // delete all unprocessed queries
+		return;
+	}
+	CharacterDatabase.DelayQueryHolder(&chrHandler, &CharacterHandler::HandlePlayerBotLoginCallback, holder);
+}
+
 #endif
 
 void WorldSession::HandlePlayerLogin(LoginQueryHolder* holder)
