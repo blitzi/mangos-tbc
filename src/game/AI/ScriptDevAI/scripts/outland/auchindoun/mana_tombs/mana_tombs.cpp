@@ -93,15 +93,15 @@ static const DialogueEntry aIntroDialogue[] =
 
 struct npc_shaheenAI : public npc_escortAI, private DialogueHelper
 {
+	ObjectGuid m_xiraxisGuid;
+	uint32 m_uiSummonCount;
+
     npc_shaheenAI(Creature* pCreature) : npc_escortAI(pCreature),
-        DialogueHelper(aIntroDialogue)
+        DialogueHelper(aIntroDialogue), m_uiSummonCount(0)
     {
         StartNextDialogueText(SPELL_ETHEREAL_TELEPORT);
         Reset();
     }
-
-    ObjectGuid m_xiraxisGuid;
-    uint32 m_uiSummonCount;
 
     void Reset() override { }
 
