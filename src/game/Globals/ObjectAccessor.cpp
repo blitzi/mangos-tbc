@@ -85,7 +85,15 @@ ObjectAccessor::GetUnit(WorldObject const& u, ObjectGuid guid)
     if (!u.IsInWorld())
         return nullptr;
 
-    return u.GetMap()->GetAnyTypeCreature(guid);
+	HighGuid guidH = guid.GetHigh();
+
+	switch (guidH)
+	{
+		case HIGHGUID_DYNAMICOBJECT: return u.GetMap()->GetDynamicObject(guid)->GetCaster();
+
+		default:
+		return u.GetMap()->GetAnyTypeCreature(guid);
+	}	
 }
 
 Corpse* ObjectAccessor::GetCorpseInMap(ObjectGuid guid, uint32 mapid)
