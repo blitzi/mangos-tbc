@@ -6259,7 +6259,8 @@ bool Unit::Attack(Unit* victim, bool meleeAttack)
     if (AI())
     {
         SendAIReaction(AI_REACTION_HOSTILE);
-        if (GetTypeId() == TYPEID_UNIT)
+		//Linked Units do not additionally call for assitance to avoid unexpected reaction chains
+        if (GetTypeId() == TYPEID_UNIT && !IsLinkingEventTrigger())
             ((Creature*)this)->CallAssistance();
     }
 

@@ -481,6 +481,7 @@ void CreatureLinkingHolder::DoCreatureLinkingEvent(CreatureLinkingEvent eventTyp
                             pEnemy->GetCombatManager().TriggerCombatTimer(pMaster);
                         }                            
                         else
+							pMaster->SetNoCallAssistance(true);
                             pMaster->AI()->AttackStart(pEnemy);
                         break;
                     case LINKING_EVENT_EVADE:
