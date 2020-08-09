@@ -65,9 +65,6 @@ void UnitAI::MoveInLineOfSight(Unit* who)
     if (m_unit->IsNeutralToAll())
         return;
 
-    /*if (who->GetObjectGuid().IsCreature() && who->IsInCombat())
-        CheckForHelp(who, m_unit, 1);*/
-
     if (!HasReactState(REACT_AGGRESSIVE)) // mobs who are aggressive can still assist
         return;
 
@@ -88,7 +85,6 @@ void UnitAI::MoveInLineOfSight(Unit* who)
 
 void UnitAI::EnterEvadeMode()
 {
-    ClearSelfRoot();
     m_unit->RemoveAllAurasOnEvade();
     m_unit->CombatStopWithPets(true);
 
@@ -102,6 +98,7 @@ void UnitAI::EnterEvadeMode()
     }
 
     m_unit->TriggerEvadeEvents();
+	ClearSelfRoot();
 }
 
 void UnitAI::AttackedBy(Unit* attacker)
@@ -399,37 +396,6 @@ void UnitAI::OnChannelStateChange(Spell const* spell, bool state, WorldObject* t
     }
 }
 
-void UnitAI::CheckForHelp(Unit* who, Unit* me, float distance)
-{
-    Unit* victim = who->getAttackerForHelper();
-
-    if (!victim)
-        return;
-
-    if (me->IsInCombat())
-        return;
-
-    // pulling happens once panic/retreating ends
-    if (who->hasUnitState(UNIT_STAT_PANIC | UNIT_STAT_RETREATING))
-        return;
-
-    if (me->GetMap()->Instanceable())
-        distance = distance / 2.5f;
-
-    if (me->CanInitiateAttack() && me->CanAttackOnSight(victim) && victim->isInAccessablePlaceFor(me))
-    {
-        if (me->IsWithinDistInMap(who, distance) && me->IsWithinLOSInMap(who, true))
-        {
-            if (me->CanAssistInCombatAgainst(who, victim))
-            {
-                AttackStart(victim);
-                if (who->AI() && who->AI()->GetAIOrder() == ORDER_FLEEING)
-                    who->GetMotionMaster()->InterruptPanic();
-            }
-        }
-    }
-}
-
 void UnitAI::DetectOrAttack(Unit* who)
 {
     float attackRadius = m_unit->GetAttackDistance(who);
@@ -603,6 +569,15 @@ void UnitAI::DoResetThreat()
 
 bool UnitAI::CanExecuteCombatAction()
 {
+	bool a = m_unit->CanReactInCombat();
+	bool b = m_unit->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SILENCED);
+	bool c = m_unit->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PACIFIED);
+	bool d = m_unit->hasUnitState(UNIT_STAT_PROPELLED | UNIT_STAT_RETREATING);
+	bool e = m_unit->IsNonMeleeSpellCasted(false);
+	bool f = m_combatScriptHappening;
+
+	bool g = m_unit->GetCombatManager().IsEvadingHome();
+
     return m_unit->CanReactInCombat() && !(m_unit->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SILENCED) && m_unit->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PACIFIED)) && !m_unit->hasUnitState(UNIT_STAT_PROPELLED | UNIT_STAT_RETREATING) && !m_unit->IsNonMeleeSpellCasted(false) && !m_combatScriptHappening;
 }
 
