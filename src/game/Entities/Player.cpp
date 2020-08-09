@@ -12203,23 +12203,7 @@ void Player::PrepareGossipMenu(WorldObject* pSource, uint32 menuId)
                     break;                                  // no checks
                 case GOSSIP_OPTION_BOT:
                 {
-#ifdef BUILD_PLAYERBOT
-                    if (botConfig.GetBoolDefault("PlayerbotAI.DisableBots", false) && !pCreature->isInnkeeper())
-                    {
-                        ChatHandler(this).PSendSysMessage("|cffff0000Playerbot system is currently disabled!");
-                        hasMenuItem = false;
-                        break;
-                    }
-
-                    int32 cost = botConfig.GetIntDefault("PlayerbotAI.BotguyCost", 0);
-                    if (cost >= 0)
-                    {
-                        std::string reqQuestIds = botConfig.GetStringDefault("PlayerbotAI.BotguyQuests", "");
-                        if ((reqQuestIds == "" || requiredQuests(reqQuestIds.c_str())) && !pCreature->isInnkeeper() && this->GetMoney() >= (uint32)cost)
-                            pCreature->LoadBotMenu(this);
-                    }
-#endif
-                    hasMenuItem = false;
+					hasMenuItem = false;
                     break;
                 }
                 case GOSSIP_OPTION_SD2_1:
@@ -12480,56 +12464,7 @@ void Player::OnGossipSelect(WorldObject* pSource, uint32 gossipListId, uint32 me
             break;
 #ifdef BUILD_PLAYERBOT
         case GOSSIP_OPTION_BOT:
-        {
-            // DEBUG_LOG("GOSSIP_OPTION_BOT");
-            PlayerTalkClass->CloseGossip();
-            uint32 guidlo = PlayerTalkClass->GossipOptionSender(gossipListId);
-            int32 cost = botConfig.GetIntDefault("PlayerbotAI.BotguyCost", 0);
-
-            if (!GetPlayerbotMgr())
-                SetPlayerbotMgr(new PlayerbotMgr(this));
-
-            if (GetPlayerbotMgr()->GetPlayerBot(ObjectGuid(HIGHGUID_PLAYER, guidlo)) != nullptr)
-            {
-                GetPlayerbotMgr()->LogoutPlayerBot(ObjectGuid(HIGHGUID_PLAYER, guidlo));
-            }
-            else if (GetPlayerbotMgr()->GetPlayerBot(ObjectGuid(HIGHGUID_PLAYER, guidlo)) == nullptr)
-            {
-                QueryResult* resultchar = CharacterDatabase.PQuery("SELECT COUNT(*) FROM characters WHERE online = '1' AND account = '%u'", m_session->GetAccountId());
-                if (resultchar)
-                {
-                    Field* fields = resultchar->Fetch();
-                    int maxnum = botConfig.GetIntDefault("PlayerbotAI.MaxNumBots", 9);
-                    int acctcharcount = fields[0].GetUInt32();
-                    if (!(m_session->GetSecurity() > SEC_PLAYER))
-                        if (acctcharcount > maxnum)
-                        {
-                            ChatHandler(this).PSendSysMessage("|cffff0000You cannot summon anymore bots.(Current Max: |cffffffff%u)", maxnum);
-                            delete resultchar;
-                            break;
-                        }
-                }
-                delete resultchar;
-
-                QueryResult* resultlvl = CharacterDatabase.PQuery("SELECT level,name FROM characters WHERE guid = '%u'", guidlo);
-                if (resultlvl)
-                {
-                    Field* fields = resultlvl->Fetch();
-                    int maxlvl = botConfig.GetIntDefault("PlayerbotAI.RestrictBotLevel", 80);
-                    int charlvl = fields[0].GetUInt32();
-                    if (!(m_session->GetSecurity() > SEC_PLAYER))
-                        if (charlvl > maxlvl)
-                        {
-                            ChatHandler(this).PSendSysMessage("|cffff0000You cannot summon |cffffffff[%s]|cffff0000, it's level is too high.(Current Max:lvl |cffffffff%u)", fields[1].GetString(), maxlvl);
-                            delete resultlvl;
-                            break;
-                        }
-                }
-                delete resultlvl;
-
-                GetPlayerbotMgr()->LoginPlayerBot(ObjectGuid(HIGHGUID_PLAYER, guidlo));
-                this->ModifyMoney(-(int32)cost);
-            }
+        {            
             return;
         }
 #endif

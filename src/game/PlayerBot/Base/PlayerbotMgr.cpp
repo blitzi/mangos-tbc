@@ -863,50 +863,6 @@ void PlayerbotMgr::RemoveAllBotsFromGroup()
     }
 }
 
-void Creature::LoadBotMenu(Player* pPlayer)
-{
-
-    if (pPlayer->GetPlayerbotAI()) return;
-    ObjectGuid guid = pPlayer->GetObjectGuid();
-    uint32 accountId = sObjectMgr.GetPlayerAccountIdByGUID(guid);
-    QueryResult* result = CharacterDatabase.PQuery("SELECT guid, name FROM characters WHERE account='%d'", accountId);
-    do
-    {
-        Field* fields = result->Fetch();
-        ObjectGuid guidlo = ObjectGuid(fields[0].GetUInt64());
-        std::string name = fields[1].GetString();
-        std::string word = "";
-
-        if ((guid == ObjectGuid()) || (guid == guidlo))
-        {
-            //not found or himself
-        }
-        else
-        {
-            // if(sConfig.GetBoolDefault("PlayerbotAI.DisableBots", false)) return;
-            // create the manager if it doesn't already exist
-            if (!pPlayer->GetPlayerbotMgr())
-                pPlayer->SetPlayerbotMgr(new PlayerbotMgr(pPlayer));
-            if (pPlayer->GetPlayerbotMgr()->GetPlayerBot(guidlo) == nullptr) // add (if not already in game)
-            {
-                word += "Recruit ";
-                word += name;
-                word += " as a Bot.";
-                pPlayer->PlayerTalkClass->GetGossipMenu().AddMenuItem((uint8) 9, word, guidlo, GOSSIP_OPTION_BOT, word, false);
-            }
-            else if (pPlayer->GetPlayerbotMgr()->GetPlayerBot(guidlo) != nullptr) // remove (if in game)
-            {
-                word += "Dismiss ";
-                word += name;
-                word += " from duty.";
-                pPlayer->PlayerTalkClass->GetGossipMenu().AddMenuItem((uint8) 0, word, guidlo, GOSSIP_OPTION_BOT, word, false);
-            }
-        }
-    }
-    while (result->NextRow());
-    delete result;
-}
-
 void Player::skill(std::list<uint32>& m_spellsToLearn)
 {
     for (SkillStatusMap::const_iterator itr = mSkillStatus.begin(); itr != mSkillStatus.end(); ++itr)
