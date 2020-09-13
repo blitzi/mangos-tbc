@@ -94,7 +94,7 @@ bool TargetedMovementGeneratorMedium<T, D>::RequiresNewPosition(T& owner, float 
 {
     float dist = this->GetDynamicTargetDistance(owner, true);
     // More distance let have better performance, less distance let have more sensitive reaction at target move.
-    return i_target->GetDistance(x, y, z, DIST_CALC_NONE) > dist * dist;
+    return i_target->GetDistance(x, y, z, DIST_CALC_SQ) > dist * dist;
 }
 
 //-----------------------------------------------//
@@ -253,14 +253,14 @@ void ChaseMovementGenerator::HandleTargetedMovement(Unit& owner, const uint32& t
             {
                 G3D::Vector3 ownerPos;
                 owner.GetPosition(ownerPos.x, ownerPos.y, ownerPos.z);
-                float distFromDestination = owner.GetDistance(dest.x, dest.y, dest.z, DIST_CALC_NONE);
-                float distOwnerFromTarget = this->i_target->GetDistance(ownerPos.x, ownerPos.y, ownerPos.z, DIST_CALC_NONE);
+                float distFromDestination = owner.GetDistance(dest.x, dest.y, dest.z, DIST_CALC_SQ);
+                float distOwnerFromTarget = this->i_target->GetDistance(ownerPos.x, ownerPos.y, ownerPos.z, DIST_CALC_SQ);
                 // Explanation of magic: comparing distances between target and destination makes it so we know when mob is between destination and owner
                 // - thats when forcible spline stop is needed
                 float targetDist = this->i_target->GetCombinedCombatReach(&owner, this->i_offset == 0.f ? true : false);
                 if (distFromDestination > distOwnerFromTarget)
                 {
-                    if (this->i_target->GetDistance(ownerPos.x, ownerPos.y, ownerPos.z, DIST_CALC_NONE) < targetDist * targetDist)
+                    if (this->i_target->GetDistance(ownerPos.x, ownerPos.y, ownerPos.z, DIST_CALC_SQ) < targetDist * targetDist)
                     {
                         if (owner.IsClientControlled())
                             owner.StopMoving(true);
@@ -338,7 +338,7 @@ void ChaseMovementGenerator::Backpedal(Unit& owner)
     float x, y, z;
     owner.GetPosition(x, y, z);
     // TODO: add calculation of circle on ground to core and use that
-    if (i_target->GetDistance(x, y, z, DIST_CALC_NONE) < (targetDist * targetDist) * 0.33f) // is too close
+    if (i_target->GetDistance(x, y, z, DIST_CALC_SQ) < (targetDist * targetDist) * 0.33f) // is too close
     {
         float ori = MapManager::NormalizeOrientation(owner.GetOrientation() + M_PI_F);
         i_target->GetNearPoint(&owner, x, y, z, owner.GetObjectBoundingRadius(), targetDist * 0.75f, ori);
@@ -371,7 +371,7 @@ void ChaseMovementGenerator::FanOut(Unit& owner)
     MaNGOS::AnyUnitFulfillingConditionInRangeCheck collisionCheck(&owner, [&](Unit* unit)->bool
     {
         return &owner != unit && unit->GetVictim() && unit->GetVictim() == this->i_target.getTarget() && !unit->IsMoving() && !unit->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
-    }, fanningRadius * fanningRadius, DIST_CALC_NONE);
+    }, fanningRadius * fanningRadius, DIST_CALC_SQ);
     MaNGOS::UnitSearcher<MaNGOS::AnyUnitFulfillingConditionInRangeCheck> checker(collider, collisionCheck);
     Cell::VisitAllObjects(&owner, checker, fanningRadius);
 
@@ -463,7 +463,7 @@ void ChaseMovementGenerator::CutPath(Unit& owner, PointsArray& path)
         for (size_t i = 1; i < path.size(); ++i)
         {
             const G3D::Vector3& data = path.at(i);
-            if (this->i_target->GetDistance(data.x, data.y, data.z, DIST_CALC_NONE) > distSquared)
+            if (this->i_target->GetDistance(data.x, data.y, data.z, DIST_CALC_SQ) > distSquared)
                 continue;
             if (!owner.GetMap()->IsInLineOfSight(tarX, tarY, tarZ + 2.0f, data.x, data.y, data.z + 2.0f, IGNORE_M2))
                 continue;
@@ -482,7 +482,7 @@ bool ChaseMovementGenerator::RequiresNewPosition(Unit& owner, float x, float y, 
 {
     float dist = this->GetDynamicTargetDistance(owner, true);
     dist *= dist;
-    float distanceToCoords = i_target->GetDistance(x, y, z, DIST_CALC_NONE); // raw squared istance
+    float distanceToCoords = i_target->GetDistance(x, y, z, DIST_CALC_SQ); // raw squared istance
     if (m_moveFurther)
     {
         // need a small window for running further/closer
@@ -586,7 +586,7 @@ float FollowMovementGenerator::GetSpeed(Unit& owner) const
     // * When following server-controlled units: try to boost up to own run speed
     if (i_target->IsClientControlled())
     {
-        const float bonus = (i_target->GetDistance(owner.GetPositionX(), owner.GetPositionY(), owner.GetPositionZ(), DIST_CALC_NONE) / speed);
+        const float bonus = (i_target->GetDistance(owner.GetPositionX(), owner.GetPositionY(), owner.GetPositionZ(), DIST_CALC_SQ) / speed);
         return std::max(owner.GetSpeed(MOVE_WALK), std::min((speed + bonus), 40.0f));
     }
 

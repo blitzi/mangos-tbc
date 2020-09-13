@@ -9168,7 +9168,7 @@ void Spell::EffectPullTowards(SpellEffectIndex eff_idx)
     else // SPELL_EFFECT_PULL_TOWARDS_DEST
     {
         m_targets.getDestination(x, y, z);
-        dist = sqrt(unitTarget->GetDistance2d(x, y, DIST_CALC_NONE));
+        dist = sqrt(unitTarget->GetDistance2d(x, y, DIST_CALC_SQ));
     }
 
     if (damage && dist > damage)

@@ -65,7 +65,7 @@ enum PlayPacketSettings
 
 enum DistanceCalculation
 {
-    DIST_CALC_NONE,
+    DIST_CALC_SQ,
     DIST_CALC_BOUNDING_RADIUS,
     DIST_CALC_COMBAT_REACH,
     DIST_CALC_COMBAT_REACH_WITH_MELEE,
@@ -787,7 +787,7 @@ class WorldObject : public Object
         bool IsWithinLOS(float ox, float oy, float oz, bool ignoreM2Model = false) const;
         bool IsWithinLOSForMe(float x, float y, float z, float collisionHeight, bool ignoreM2Model = false) const;
         bool IsWithinLOSInMap(const WorldObject* obj, bool ignoreM2Model = false) const;
-        bool GetDistanceOrder(WorldObject const* obj1, WorldObject const* obj2, bool is3D = true, DistanceCalculation distcalc = DIST_CALC_NONE) const;
+        bool GetDistanceOrder(WorldObject const* obj1, WorldObject const* obj2, bool is3D = true, DistanceCalculation distcalc = DIST_CALC_SQ) const;
         bool IsInRange(WorldObject const* obj, float minRange, float maxRange, bool is3D = true, bool combat = false) const;
         bool IsInRange2d(float x, float y, float minRange, float maxRange, bool combat = false) const;
         bool IsInRange3d(float x, float y, float z, float minRange, float maxRange, bool combat = false) const;

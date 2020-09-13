@@ -944,7 +944,7 @@ struct boss_illidan_stormrageAI : public CombatAI, private DialogueHelper
                             {
                                 if (closestTrigger)
                                 {
-                                    if (closestTrigger->GetDistance(m_creature, true, DIST_CALC_NONE) > trigger->GetDistance(m_creature, true, DIST_CALC_NONE))
+                                    if (closestTrigger->GetDistance(m_creature, true, DIST_CALC_SQ) > trigger->GetDistance(m_creature, true, DIST_CALC_SQ))
                                         closestTrigger = trigger;
                                 }
                                 else

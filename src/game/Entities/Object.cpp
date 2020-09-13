@@ -1276,7 +1276,7 @@ float WorldObject::GetDistanceZ(const WorldObject* obj) const
 
 bool WorldObject::IsWithinDist3d(float x, float y, float z, float dist2compare) const
 {
-    float distsq = GetDistance(x, y, z, DIST_CALC_NONE);
+    float distsq = GetDistance(x, y, z, DIST_CALC_SQ);
     float sizefactor = GetCombatReach();
     float maxdist = dist2compare + sizefactor;
 
@@ -1285,7 +1285,7 @@ bool WorldObject::IsWithinDist3d(float x, float y, float z, float dist2compare) 
 
 bool WorldObject::IsWithinDist2d(float x, float y, float dist2compare) const
 {
-    float distsq = GetDistance2d(x, y, DIST_CALC_NONE);
+    float distsq = GetDistance2d(x, y, DIST_CALC_SQ);
     float sizefactor = GetCombatReach();
     float maxdist = dist2compare + sizefactor;
 
@@ -1294,7 +1294,7 @@ bool WorldObject::IsWithinDist2d(float x, float y, float dist2compare) const
 
 bool WorldObject::_IsWithinDist(WorldObject const* obj, float dist2compare, bool is3D) const
 {
-    float distsq = GetDistance(obj, is3D, DIST_CALC_NONE);
+    float distsq = GetDistance(obj, is3D, DIST_CALC_SQ);
     float sizefactor = GetCombatReach() + obj->GetCombatReach();
     float maxdist = dist2compare + sizefactor;
 
@@ -1303,7 +1303,7 @@ bool WorldObject::_IsWithinDist(WorldObject const* obj, float dist2compare, bool
 
 bool WorldObject::_IsWithinCombatDist(WorldObject const* obj, float dist2compare, bool is3D) const
 {
-    float distsq = GetDistance(obj, is3D, DIST_CALC_NONE);
+    float distsq = GetDistance(obj, is3D, DIST_CALC_SQ);
     float sizefactor = GetCombinedCombatReach(obj);
     float maxdist = dist2compare + sizefactor;
 
@@ -1341,7 +1341,7 @@ bool WorldObject::GetDistanceOrder(WorldObject const* obj1, WorldObject const* o
 
 bool WorldObject::IsInRange(WorldObject const* obj, float minRange, float maxRange, bool is3D /* = true */, bool combat /*= false*/) const
 {
-    float distsq = GetDistance(obj, is3D, DIST_CALC_NONE);
+    float distsq = GetDistance(obj, is3D, DIST_CALC_SQ);
     float sizefactor;
     if (combat)
         sizefactor = GetObjectBoundingRadius() + obj->GetObjectBoundingRadius();
@@ -1362,7 +1362,7 @@ bool WorldObject::IsInRange(WorldObject const* obj, float minRange, float maxRan
 
 bool WorldObject::IsInRange2d(float x, float y, float minRange, float maxRange, bool combat /*= false*/) const
 {
-    float distsq = GetDistance2d(x, y, DIST_CALC_NONE);
+    float distsq = GetDistance2d(x, y, DIST_CALC_SQ);
     float sizefactor;
     if (combat)
         sizefactor = GetObjectBoundingRadius();
@@ -1383,7 +1383,7 @@ bool WorldObject::IsInRange2d(float x, float y, float minRange, float maxRange, 
 
 bool WorldObject::IsInRange3d(float x, float y, float z, float minRange, float maxRange, bool combat /*= false*/) const
 {
-    float distsq = GetDistance(x, y, z, DIST_CALC_NONE);
+    float distsq = GetDistance(x, y, z, DIST_CALC_SQ);
     float sizefactor;
     if (combat)
         sizefactor = GetObjectBoundingRadius();

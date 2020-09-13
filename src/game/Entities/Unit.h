@@ -2761,7 +2761,7 @@ struct TargetDistanceOrderNear : public std::binary_function<Unit const, Unit co
     Unit const* m_mainTarget;
     DistanceCalculation m_distcalc;
 
-    TargetDistanceOrderNear(Unit const* target, DistanceCalculation distcalc = DIST_CALC_NONE) : m_mainTarget(target), m_distcalc(distcalc) {}
+    TargetDistanceOrderNear(Unit const* target, DistanceCalculation distcalc = DIST_CALC_SQ) : m_mainTarget(target), m_distcalc(distcalc) {}
     // functor for operator ">"
     bool operator()(Unit const* _Left, Unit const* _Right) const
     {
@@ -2775,7 +2775,7 @@ struct TargetDistanceOrderFarAway : public std::binary_function<Unit const, Unit
 {
     Unit const* m_mainTarget;
     DistanceCalculation m_distcalc;
-    TargetDistanceOrderFarAway(Unit const* target, DistanceCalculation distcalc = DIST_CALC_NONE) : m_mainTarget(target), m_distcalc(distcalc) {}
+    TargetDistanceOrderFarAway(Unit const* target, DistanceCalculation distcalc = DIST_CALC_SQ) : m_mainTarget(target), m_distcalc(distcalc) {}
     // functor for operator "<"
     bool operator()(Unit const* _Left, Unit const* _Right) const
     {
@@ -2788,7 +2788,7 @@ struct LowestHPNearestOrder : public std::binary_function<Unit const, Unit const
     Unit const* m_mainTarget;
     DistanceCalculation m_distcalc;
 
-    LowestHPNearestOrder(Unit const* target, DistanceCalculation distcalc = DIST_CALC_NONE) : m_mainTarget(target), m_distcalc(distcalc) {}
+    LowestHPNearestOrder(Unit const* target, DistanceCalculation distcalc = DIST_CALC_SQ) : m_mainTarget(target), m_distcalc(distcalc) {}
     // functor for operator ">"
     bool operator()(Unit const* _Left, Unit const* _Right) const
     {

@@ -8464,7 +8464,7 @@ bool Unit::IsVisibleForOrDetect(Unit const* u, WorldObject const* viewPoint, boo
         visibleDistance = GetVisibilityData().GetStealthVisibilityDistance(u, HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED));
 
         // recheck new distance
-        if (visibleDistance <= 0 || GetDistance(viewPoint, true, DIST_CALC_NONE) > visibleDistance * visibleDistance)
+        if (visibleDistance <= 0 || GetDistance(viewPoint, true, DIST_CALC_SQ) > visibleDistance * visibleDistance)
             return false;
     }
 

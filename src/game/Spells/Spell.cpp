@@ -788,7 +788,7 @@ void Spell::AddUnitTarget(Unit* target, uint8 effectMask, CheckException excepti
     if (speed > 0.0f && affectiveObject && target != affectiveObject)
     {
         // calculate spell incoming interval
-        float dist = affectiveObject->GetDistance(target->GetPositionX(), target->GetPositionY(), target->GetPositionZ(), DIST_CALC_NONE);
+        float dist = affectiveObject->GetDistance(target->GetPositionX(), target->GetPositionY(), target->GetPositionZ(), DIST_CALC_SQ);
         dist = sqrt(dist); // default distance calculation is raw, apply sqrt before the next step
 
         if (dist < 5.0f)
@@ -866,7 +866,7 @@ void Spell::AddGOTarget(GameObject* target, uint8 effectMask)
     if (speed > 0.0f && affectiveObject && target != affectiveObject)
     {
         // calculate spell incoming interval
-        float dist = affectiveObject->GetDistance(target->GetPositionX(), target->GetPositionY(), target->GetPositionZ(), DIST_CALC_NONE);
+        float dist = affectiveObject->GetDistance(target->GetPositionX(), target->GetPositionY(), target->GetPositionZ(), DIST_CALC_SQ);
         dist = sqrt(dist); // default distance calculation is raw, apply sqrt before the next step
         if (dist < 5.0f)
             dist = 5.0f;
@@ -913,7 +913,7 @@ void Spell::AddDestExecution(SpellEffectIndex effIndex)
             // calculate spell incoming interval
             float x, y, z;
             m_targets.getDestination(x, y, z);
-            float dist = affectiveObject->GetDistance(x, y, z, DIST_CALC_NONE);
+            float dist = affectiveObject->GetDistance(x, y, z, DIST_CALC_SQ);
             dist = sqrt(dist); // default distance calculation is raw, apply sqrt before the next step
             if (dist < 5.0f)
                 dist = 5.0f;
@@ -2573,7 +2573,7 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, bool targ
                     }
                     foundScriptGOTargets.sort([=](const GameObject * a, const GameObject * b) -> bool
                     {
-                        return caster->GetDistance(a, true, DIST_CALC_NONE) < caster->GetDistance(b, true, DIST_CALC_NONE);
+                        return caster->GetDistance(a, true, DIST_CALC_SQ) < caster->GetDistance(b, true, DIST_CALC_SQ);
                     });
 
                     if (foundScriptGOTargets.size() > targetCount) // if we have too many targets, we need to trim the list
@@ -2620,7 +2620,7 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, bool targ
 
                         foundScriptCreatureTargets.sort([=](const Creature * a, const Creature * b) -> bool
                         {
-                            return caster->GetDistance(a, true, DIST_CALC_NONE) < caster->GetDistance(b, true, DIST_CALC_NONE);
+                            return caster->GetDistance(a, true, DIST_CALC_SQ) < caster->GetDistance(b, true, DIST_CALC_SQ);
                         });
 
                         if (foundScriptCreatureTargets.size() > targetCount) // if we have too many targets, we need to trim the list
@@ -5733,7 +5733,7 @@ SpellCastResult Spell::CheckRange(bool strict)
     if (target && target != m_caster)
     {
         // distance from target in checks
-        float dist = m_caster->GetDistance(target, true, DIST_CALC_NONE); // minRange/maxRange already contain everything
+        float dist = m_caster->GetDistance(target, true, DIST_CALC_SQ); // minRange/maxRange already contain everything
         if (dist > maxRange * maxRange)
            return SPELL_FAILED_OUT_OF_RANGE;
         if (minRange && dist < minRange * minRange)
@@ -5749,7 +5749,7 @@ SpellCastResult Spell::CheckRange(bool strict)
 
     if (m_targets.m_targetMask == TARGET_FLAG_DEST_LOCATION)
     {
-        float dist = m_caster->GetDistance(m_targets.m_destX, m_targets.m_destY, m_targets.m_destZ, DIST_CALC_NONE);
+        float dist = m_caster->GetDistance(m_targets.m_destX, m_targets.m_destY, m_targets.m_destZ, DIST_CALC_SQ);
         if (dist > maxRange * maxRange)
             return SPELL_FAILED_OUT_OF_RANGE;
         if (minRange && dist < minRange * minRange)

@@ -984,7 +984,7 @@ bool GameObject::isVisibleForInState(Player const* u, WorldObject const* viewPoi
                 {
                     float visibleDistance = GetVisibilityData().GetStealthVisibilityDistance(u);
                     // recheck new distance
-                    if (GetDistance(viewPoint, true, DIST_CALC_NONE) < visibleDistance * visibleDistance && u->HasInArc(this))
+                    if (GetDistance(viewPoint, true, DIST_CALC_SQ) < visibleDistance * visibleDistance && u->HasInArc(this))
                         return true;
                 }
 
@@ -2383,7 +2383,7 @@ bool GameObject::IsAtInteractDistance(Player const* player, uint32 maxRange) con
         }
 
         if (GetGoType() == GAMEOBJECT_TYPE_SPELL_FOCUS)
-            return maxRange * maxRange >= GetDistance(player, true, DIST_CALC_NONE);
+            return maxRange * maxRange >= GetDistance(player, true, DIST_CALC_SQ);
 
         if (sGameObjectDisplayInfoStore.LookupEntry(GetGOInfo()->displayId))
             return IsAtInteractDistance(player->GetPosition(), maxRange);
@@ -2413,7 +2413,7 @@ bool GameObject::IsAtInteractDistance(Position const& pos, float radius) const
             .contains({ pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ() });
     }
 
-    return GetDistance(pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ(), DIST_CALC_NONE) <= (radius * radius);
+    return GetDistance(pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ(), DIST_CALC_SQ) <= (radius * radius);
 }
 
 SpellEntry const* GameObject::GetSpellForLock(Player const* player) const

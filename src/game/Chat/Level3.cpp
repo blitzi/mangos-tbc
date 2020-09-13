@@ -2981,7 +2981,7 @@ bool ChatHandler::HandleGetDistanceCommand(char* args)
 
     Player* player = m_session->GetPlayer();
 
-    PSendSysMessage("Raw distance: %.2f", sqrt(player->GetDistance(obj, true, DIST_CALC_NONE)));
+    PSendSysMessage("Raw distance: %.2f", sqrt(player->GetDistance(obj, true, DIST_CALC_SQ)));
 
     PSendSysMessage("P -> T Combat distance: %.2f", player->GetDistance(obj, true, DIST_CALC_COMBAT_REACH));
     PSendSysMessage("P -> T Bounding distance: %.2f", player->GetDistance(obj, true, DIST_CALC_BOUNDING_RADIUS));
