@@ -35,6 +35,7 @@ struct SpellEntry;
 class ChatHandler;
 class Spell;
 
+#define HELP_FRIENDLY_UNIT_TIMER 3000
 #define TIME_INTERVAL_LOOK   5000
 #define VISIBILITY_RANGE    10000
 #define DISTANCING_CONSTANT 1.f
@@ -289,7 +290,7 @@ class UnitAI
          * Note: Use this function to handle Timers, Threat-Management and MeleeAttacking
          * @param uiDiff Passed time since last call
          */
-        virtual void UpdateAI(const uint32 /*diff*/) {}
+		virtual void UpdateAI(const uint32 /*diff*/);
 
         ///== State checks =================================
 
@@ -395,6 +396,7 @@ class UnitAI
          */
         virtual void OnLeash() {}
 
+		bool CheckForHelp(Unit* who, Unit* me, float distance);
         void DetectOrAttack(Unit* who);
         bool CanTriggerStealthAlert(Unit* who, float attackRadius) const;
 
@@ -470,6 +472,10 @@ class UnitAI
         /// Pointer to the Creature controlled by this AI
         Unit* m_unit;
 
+		Unit* m_HelpMe;
+		Unit* m_HelpWho;
+		Unit* m_HelpVictim;
+
         /// How should an enemy be chased
         float m_attackDistance;
         float m_attackAngle;
@@ -485,6 +491,8 @@ class UnitAI
 
         bool m_meleeEnabled;                              // If we allow melee auto attack
         bool m_selfRooted;
+
+		uint32 m_DetectHelpTimer;
 
         ReactStates m_reactState;
 

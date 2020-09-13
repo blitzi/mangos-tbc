@@ -1630,6 +1630,8 @@ void CreatureEventAI::UpdateAI(const uint32 diff)
         if (!m_currentRangedMode)
             DoMeleeAttackIfReady();
     }
+
+	UnitAI::UpdateAI(diff);
 }
 
 inline uint32 CreatureEventAI::GetRandActionParam(uint32 rnd, uint32 param1, uint32 param2, uint32 param3) const

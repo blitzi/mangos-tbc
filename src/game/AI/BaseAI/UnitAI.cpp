@@ -42,7 +42,11 @@ UnitAI::UnitAI(Unit* unit) :
     m_meleeEnabled(true),
     m_reactState(REACT_AGGRESSIVE),
     m_combatScriptHappening(false),
-    m_currentAIOrder(ORDER_NONE)
+    m_currentAIOrder(ORDER_NONE),
+	m_DetectHelpTimer(HELP_FRIENDLY_UNIT_TIMER),
+	m_HelpMe(nullptr),
+	m_HelpWho(nullptr),
+	m_HelpVictim(nullptr)
 {
 }
 
@@ -59,10 +63,12 @@ void UnitAI::MoveInLineOfSight(Unit* who)
         if (m_unit->GetDistanceZ(who) > (IsRangedUnit() ? CREATURE_Z_ATTACK_RANGE_RANGED : CREATURE_Z_ATTACK_RANGE_MELEE))
             return;
 
-    if (m_unit->GetVictim() && !m_unit->GetMap()->IsDungeon())
-        return;
-
     if (m_unit->IsNeutralToAll())
+        return;
+	
+	CheckForHelp(who, m_unit, 8);
+
+    if (m_unit->GetVictim() && !m_unit->GetMap()->IsDungeon())
         return;
 
     if (!HasReactState(REACT_AGGRESSIVE)) // mobs who are aggressive can still assist
@@ -396,6 +402,91 @@ void UnitAI::OnChannelStateChange(Spell const* spell, bool state, WorldObject* t
     }
 }
 
+bool UnitAI::CheckForHelp(Unit* who, Unit* me, float distance)
+{
+	Unit* victim = who->getAttackerForHelper();
+	bool canHelp = victim && !me->IsInCombat() && !who->hasUnitState(UNIT_STAT_PANIC | UNIT_STAT_RETREATING);
+
+	if (victim && victim->GetTypeId() == TYPEID_PLAYER)
+	{
+		int x = 0;
+	}
+
+	if (!canHelp)
+		return false;
+
+	bool canAttack = false;
+
+	if (me->CanInitiateAttack() && me->CanAttackOnSight(victim) && victim->isInAccessablePlaceFor(me))
+	{
+		if (me->IsWithinDistInMap(who, distance) && me->IsWithinLOSInMap(who, true))
+		{
+			if (me->CanAssistInCombatAgainst(who, victim))
+			{		
+				canAttack = true;		
+			}
+		}
+	}
+
+
+	if (victim && victim->GetTypeId() == TYPEID_PLAYER)
+	{
+		int x = 0;
+	}
+
+	if (canHelp && canAttack)
+	{
+		if (!m_HelpVictim)
+			m_DetectHelpTimer = HELP_FRIENDLY_UNIT_TIMER;
+
+		m_HelpMe = me;
+		m_HelpWho = who;
+		m_HelpVictim = victim;
+	}
+	else
+	{
+		m_DetectHelpTimer = 0;
+		m_HelpMe = nullptr;
+		m_HelpWho = nullptr;
+		m_HelpVictim = nullptr;
+	}
+
+	return canHelp && canAttack;
+}
+
+void UnitAI::UpdateAI(uint32 diff)
+{
+	if (m_HelpMe == nullptr ||
+		m_HelpWho == nullptr ||
+		m_HelpVictim == nullptr)
+	{
+		return;
+	}
+
+	if (m_HelpVictim->GetTypeId() == TYPEID_PLAYER)
+	{
+		int x = 0;
+	}
+
+	if (m_DetectHelpTimer)
+	{
+		if (m_DetectHelpTimer <= diff)
+		{
+			m_DetectHelpTimer = 0;
+
+			if (m_HelpMe->IsCreature())
+				((Creature*)m_HelpMe)->SetNoCallAssistance(true);
+
+			AttackStart(m_HelpVictim);
+			if (m_HelpWho->AI() && m_HelpWho->AI()->GetAIOrder() == ORDER_FLEEING)
+				m_HelpWho->GetMotionMaster()->InterruptPanic();
+		}
+		else
+			m_DetectHelpTimer -= diff;
+	}
+}
+
+
 void UnitAI::DetectOrAttack(Unit* who)
 {
     float attackRadius = m_unit->GetAttackDistance(who);
@@ -569,15 +660,6 @@ void UnitAI::DoResetThreat()
 
 bool UnitAI::CanExecuteCombatAction()
 {
-	bool a = m_unit->CanReactInCombat();
-	bool b = m_unit->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SILENCED);
-	bool c = m_unit->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PACIFIED);
-	bool d = m_unit->hasUnitState(UNIT_STAT_PROPELLED | UNIT_STAT_RETREATING);
-	bool e = m_unit->IsNonMeleeSpellCasted(false);
-	bool f = m_combatScriptHappening;
-
-	bool g = m_unit->GetCombatManager().IsEvadingHome();
-
     return m_unit->CanReactInCombat() && !(m_unit->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SILENCED) && m_unit->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PACIFIED)) && !m_unit->hasUnitState(UNIT_STAT_PROPELLED | UNIT_STAT_RETREATING) && !m_unit->IsNonMeleeSpellCasted(false) && !m_combatScriptHappening;
 }
 
