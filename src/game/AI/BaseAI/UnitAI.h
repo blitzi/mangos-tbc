@@ -396,7 +396,8 @@ class UnitAI
          */
         virtual void OnLeash() {}
 
-		bool CheckForHelp(Unit* who, Unit* me, float distance);
+		void CheckForHelp(Unit* who, Unit* me, float distance);
+		void ClearHelpVictim();
         void DetectOrAttack(Unit* who);
         bool CanTriggerStealthAlert(Unit* who, float attackRadius) const;
 

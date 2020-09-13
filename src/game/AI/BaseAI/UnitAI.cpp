@@ -402,18 +402,19 @@ void UnitAI::OnChannelStateChange(Spell const* spell, bool state, WorldObject* t
     }
 }
 
-bool UnitAI::CheckForHelp(Unit* who, Unit* me, float distance)
+void UnitAI::CheckForHelp(Unit* who, Unit* me, float distance)
 {
 	Unit* victim = who->getAttackerForHelper();
+
+	//if you already have a victim, return
+	if (victim && m_HelpVictim && m_HelpVictim != victim)
+		return;
+
 	bool canHelp = victim && !me->IsInCombat() && !who->hasUnitState(UNIT_STAT_PANIC | UNIT_STAT_RETREATING);
 
-	if (victim && victim->GetTypeId() == TYPEID_PLAYER)
-	{
-		int x = 0;
-	}
-
 	if (!canHelp)
-		return false;
+		return;
+
 
 	bool canAttack = false;
 
@@ -428,30 +429,31 @@ bool UnitAI::CheckForHelp(Unit* who, Unit* me, float distance)
 		}
 	}
 
-
-	if (victim && victim->GetTypeId() == TYPEID_PLAYER)
-	{
-		int x = 0;
-	}
-
 	if (canHelp && canAttack)
 	{
 		if (!m_HelpVictim)
+		{	
 			m_DetectHelpTimer = HELP_FRIENDLY_UNIT_TIMER;
-
-		m_HelpMe = me;
-		m_HelpWho = who;
-		m_HelpVictim = victim;
+			m_HelpMe = me;
+			m_HelpWho = who;
+			m_HelpVictim = victim;
+		}
 	}
 	else
 	{
-		m_DetectHelpTimer = 0;
-		m_HelpMe = nullptr;
-		m_HelpWho = nullptr;
-		m_HelpVictim = nullptr;
+		if (m_HelpVictim)
+		{
+			ClearHelpVictim();
+		}
 	}
+}
 
-	return canHelp && canAttack;
+void UnitAI::ClearHelpVictim()
+{
+	m_DetectHelpTimer = 0;
+	m_HelpMe = nullptr;
+	m_HelpWho = nullptr;
+	m_HelpVictim = nullptr;
 }
 
 void UnitAI::UpdateAI(uint32 diff)
@@ -490,7 +492,7 @@ void UnitAI::UpdateAI(uint32 diff)
 void UnitAI::DetectOrAttack(Unit* who)
 {
     float attackRadius = m_unit->GetAttackDistance(who);
-    if (m_unit->GetDistance(who, true, DIST_CALC_NONE) > attackRadius * attackRadius)
+    if (m_unit->GetDistance(who, true, DIST_CALC_SQ) > attackRadius * attackRadius)
         return;
 
     if (!m_unit->IsWithinLOSInMap(who, true))
@@ -525,7 +527,7 @@ bool UnitAI::CanTriggerStealthAlert(Unit* who, float /*attackRadius*/) const
     if (m_unit->hasUnitState(UNIT_STAT_DISTRACTED))
         return false;
 
-    return who->HasStealthAura() && m_unit->GetDistance(who, true, DIST_CALC_NONE) > who->GetVisibilityData().GetStealthVisibilityDistance(m_unit);
+    return who->HasStealthAura() && m_unit->GetDistance(who, true, DIST_CALC_SQ) > who->GetVisibilityData().GetStealthVisibilityDistance(m_unit);
 }
 
 // ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -737,7 +739,7 @@ void UnitAI::AttackClosestEnemy()
     for (auto& data : list)
     {
         Unit* enemy = data->getTarget();
-        float curDistance = enemy->GetDistance(m_unit, true, DIST_CALC_NONE);
+        float curDistance = enemy->GetDistance(m_unit, true, DIST_CALC_SQ);
         if (!closestEnemy || curDistance < distance)
         {
             closestEnemy = enemy;
