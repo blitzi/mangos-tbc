@@ -118,7 +118,7 @@ struct boss_mechano_lord_capacitusAI : public ScriptedAI
 
     void SummonedMovementInform(Creature* summoned, uint32 /*uiMotionType*/, uint32 /*uiData*/) override
     {
-        MoveToRandomPoint(summoned);
+        //MoveToRandomPoint(summoned);
     }
 
     void UpdateAI(const uint32 diff) override
