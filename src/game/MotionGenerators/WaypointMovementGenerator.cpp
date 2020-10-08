@@ -165,6 +165,8 @@ void WaypointMovementGenerator<Creature>::OnArrived(Creature& creature)
 
     WaypointNode const& node = m_currentWaypointNode->second;
 
+	sLog.SetLogFilter(LOG_FILTER_CREATURE_MOVES, true);
+
     if (node.script_id)
     {
         DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "Creature movement start script %u at point %u for %s.", node.script_id, i_currentNode, creature.GetGuidStr().c_str());
@@ -339,7 +341,9 @@ uint32 WaypointMovementGenerator<Creature>::BuildIntPath(PointsArray& path, Crea
                 skippedPoints = 0;
             }
 
-            if (generatePoint)
+			bool invalidHeight = std::abs(currPos.z) > std::abs(INVALID_HEIGHT);
+
+            if (generatePoint && !invalidHeight)
             {
                 path.push_back(currPos);                    // push current position
                 lastZDiff = currZDiff;
@@ -378,6 +382,9 @@ static const uint32 PreSendTime     = 1500;
 // build and send path to next node
 void WaypointMovementGenerator<Creature>::SendNextWayPointPath(Creature& creature)
 {
+	if (!i_path)
+		return;
+
     // make sure to reset spline index as its new path
     m_nodeIndexes.clear();
 
