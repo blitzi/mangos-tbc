@@ -311,6 +311,7 @@ class Spell
         void EffectOpenLock(SpellEffectIndex eff_idx);
         void EffectSummonChangeItem(SpellEffectIndex eff_idx);
         void EffectProficiency(SpellEffectIndex eff_idx);
+        void EffectTeleportGraveyard(SpellEffectIndex eff_idx);
         void EffectApplyAreaAura(SpellEffectIndex eff_idx);
         void EffectSummonType(SpellEffectIndex eff_idx);
         void EffectLearnSpell(SpellEffectIndex eff_idx);
@@ -420,7 +421,8 @@ class Spell
         SpellCastResult CheckPower(bool strict);
         SpellCastResult CheckCasterAuras() const;
 
-        int32 CalculateDamage(SpellEffectIndex i, Unit* target) { return m_caster->CalculateSpellEffectValue(target, m_spellInfo, i, &m_currentBasePoints[i]); }
+        int32 CalculateSpellEffectValue(SpellEffectIndex i, Unit* target) { return m_caster->CalculateSpellEffectValue(target, m_spellInfo, i, &m_currentBasePoints[i]); }
+        int32 CalculateSpellEffectDamage(Unit* unitTarget, int32 damage);
         static uint32 CalculatePowerCost(SpellEntry const* spellInfo, Unit* caster, Spell* spell = nullptr, Item* castItem = nullptr, bool finalUse = false);
 
         bool HaveTargetsForEffect(SpellEffectIndex effect) const;
@@ -471,7 +473,8 @@ class Spell
 
         void StopCast(SpellCastResult castResult);
 
-        void HandleEffects(Unit* pUnitTarget, Item* pItemTarget, GameObject* pGOTarget, SpellEffectIndex i, float DamageMultiplier = 1.0);
+        void ExecuteEffects(Unit* unitTarget, Item* itemTarget, GameObject* GOTarget, uint32 effectMask);
+        void HandleEffect(Unit* unitTarget, Item* itemTarget, GameObject* GOTarget, SpellEffectIndex effIdx, float damageMultiplier = 1.0);
         void HandleThreatSpells();
         // void HandleAddAura(Unit* Target);
 
@@ -497,6 +500,8 @@ class Spell
         bool m_ignoreGCD;
         bool m_ignoreCosts;
         bool m_ignoreCooldowns;
+        bool m_ignoreConcurrentCasts;
+        bool m_hideInCombatLog;
 
         int32 GetCastTime() const { return m_casttime; }
         uint32 GetCastedTime() const { return m_timer; }
@@ -549,8 +554,6 @@ class Spell
         Unit* GetAffectiveCaster() const { return m_originalCasterGUID ? m_originalCaster : m_caster; }
         // m_originalCasterGUID can store GO guid, and in this case this is visual caster
         WorldObject* GetCastingObject() const;
-
-        uint32 GetPowerCost() const { return m_powerCost; }
         // channels are generally instant - until more research provided all need to have speed 0
         float GetSpellSpeed() const;
 
@@ -574,6 +577,56 @@ class Spell
 
         uint64 GetScriptValue() const { return m_scriptValue; }
         void SetScriptValue(uint64 value) { m_scriptValue = value; }
+
+        // Spell Target Subsystem - public part
+        // Targets store structures and data
+        struct TargetInfo
+        {
+            ObjectGuid targetGUID;
+            uint64 timeDelay;
+            uint64 initialDelay; // Used to store reflect travel time so we can reset it on proc
+            uint32 HitInfo;
+            uint32 damage;
+            uint32 healing;
+            SpellMissInfo missCondition : 8;
+            SpellMissInfo reflectResult : 8;
+            uint8  effectHitMask : 8; // Used for all effects which actually hit a target
+            uint8  effectMask : 8; // Used for all effects a certain target was evaluated for
+            uint8  effectMaskProcessed : 8; // Used for all effects that were already processed
+            bool   processed : 1;
+            bool   magnet : 1;
+            bool   procReflect : 1; // Used to tell hit to proc reflect only and return reflect back
+            bool   isCrit : 1;
+            uint32 heartbeatResistChance;
+        };
+        uint8 m_needAliveTargetMask;                        // Mask req. alive targets
+        void ProcReflectProcs(TargetInfo& targetInfo);
+
+        struct GOTargetInfo
+        {
+            ObjectGuid targetGUID;
+            uint64 timeDelay;
+            uint8  effectMask : 8;
+            bool   processed : 1;
+        };
+
+        struct ItemTargetInfo
+        {
+            Item* item;
+            uint8 effectMask;
+        };
+
+        struct DestTargetInfo
+        {
+            uint32 effectMask;
+            uint64 timeDelay;
+            bool processed;
+            DestTargetInfo() : effectMask(0), timeDelay(0), processed(false) {}
+        };
+
+        typedef std::list<TargetInfo>     TargetList;
+        typedef std::list<GOTargetInfo>   GOTargetList;
+        typedef std::list<ItemTargetInfo> ItemTargetList;
 
         // Scripting system
         SpellScript* GetSpellScript() const { return m_spellScript; }
@@ -602,7 +655,11 @@ class Spell
         void SetJumpRadius(float newValue) { m_jumpRadius = newValue; }
         // warning - always set scheme for first unique target in a row
         void SetFilteringScheme(SpellEffectIndex effIdx, bool targetB, SpellTargetFilterScheme scheme) { m_filteringScheme[effIdx][uint32(targetB)] = scheme; }
-
+        // onsuccessfulspellstart
+        uint32 GetPowerCost() const { return m_powerCost; }
+        void SetPowerCost(uint32 powerCost) { m_powerCost = powerCost; }
+        // access to targets
+        TargetList& GetTargetList() { return m_UniqueTargetInfo; }
     protected:
         void SendLoot(ObjectGuid guid, LootType loottype, LockType lockType);
         bool IgnoreItemRequirements() const;                // some item use spells have unexpected reagent data
@@ -706,52 +763,6 @@ class Spell
         //*****************************************
         // Spell target subsystem
         //*****************************************
-        // Targets store structures and data
-        struct TargetInfo
-        {
-            ObjectGuid targetGUID;
-            uint64 timeDelay;
-            uint64 initialDelay; // Used to store reflect travel time so we can reset it on proc
-            uint32 HitInfo;
-            uint32 damage;
-            SpellMissInfo missCondition: 8;
-            SpellMissInfo reflectResult: 8;
-            uint8  effectHitMask : 8; // Used for all effects which actually hit a target
-            uint8  effectMask: 8; // Used for all effects a certain target was evaluated for
-            bool   processed: 1;
-            bool   magnet: 1;
-            bool   procReflect : 1; // Used to tell hit to proc reflect only and return reflect back
-            uint32 heartbeatResistChance;
-        };
-        uint8 m_needAliveTargetMask;                        // Mask req. alive targets
-        void ProcReflectProcs(TargetInfo& targetInfo);
-
-        struct GOTargetInfo
-        {
-            ObjectGuid targetGUID;
-            uint64 timeDelay;
-            uint8  effectMask: 8;
-            bool   processed: 1;
-        };
-
-        struct ItemTargetInfo
-        {
-            Item* item;
-            uint8 effectMask;
-        };
-
-        struct DestTargetInfo
-        {
-            uint32 effectMask;
-            uint64 timeDelay;
-            bool processed;
-            DestTargetInfo() : effectMask(0), timeDelay(0), processed(false) {}
-        };
-
-        typedef std::list<TargetInfo>     TargetList;
-        typedef std::list<GOTargetInfo>   GOTargetList;
-        typedef std::list<ItemTargetInfo> ItemTargetList;
-
         TargetList     m_UniqueTargetInfo;
         GOTargetList   m_UniqueGOTargetInfo;
         ItemTargetList m_UniqueItemInfo;
@@ -763,7 +774,7 @@ class Spell
         void AddItemTarget(Item* item, uint8 effectMask);
         void AddDestExecution(SpellEffectIndex effIndex);
         void DoAllEffectOnTarget(TargetInfo* target);
-        void HandleDelayedSpellLaunch(TargetInfo* target);
+        void HandleImmediateEffectExecution(TargetInfo* target);
         void InitializeDamageMultipliers();
         void ResetEffectDamageAndHeal();
         void DoSpellHitOnUnit(Unit* unit, uint32 effectMask, TargetInfo* target, bool isReflected = false);

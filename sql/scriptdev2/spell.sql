@@ -19,14 +19,21 @@ INSERT INTO spell_scripts(Id, ScriptName) VALUES
 (19872,'spell_calm_dragonkin'),
 (19873,'spell_destroy_egg'),
 (20038,'spell_explosion_razorgore'),
+(21651,'spell_opening_capping'),
 (25684,'spell_summon_mana_fiends_moam'),
 (25937,'spell_viscidus_freeze'),
+(26009,'spell_cthun_periodic_rotate'),
 (26084,'spell_aq_whirlwind'),
+(26136,'spell_cthun_periodic_rotate'),
+(26137,'spell_cthun_rotate_trigger'),
+(26152,'spell_cthun_periodic_eye_trigger'),
 (26180,'spell_huhuran_wyvern_string'),
+(26398,'spell_cthun_hook_tentacle'),
 (26584,'spell_summon_toxic_slime'),
 (26591,'spell_teleport_image'),
 (26619,'spell_periodic_scarab_trigger'),
 (26686,'spell_aq_whirlwind'),
+(28282,'spell_ashbringer_item'),
 (27808,'spell_kel_thuzad_frost_blast'),
 (28522,'spell_sapphiron_icebolt_aura'),
 (28526,'spell_sapphiron_icebolt'),
@@ -54,7 +61,8 @@ INSERT INTO spell_scripts(Id, ScriptName) VALUES
 (40251,'spell_shadow_of_death'),
 (41289,'spell_ethereal_ring_signal_flare'),
 (41999,'spell_shadow_of_death_remove'),
-(44006,'spell_teleport_self_akilzon');
+(44006,'spell_teleport_self_akilzon'),
+(43681,'spell_inactive');
 
 -- Wotlk
 
@@ -82,11 +90,59 @@ INSERT INTO spell_scripts(Id, ScriptName) VALUES
 (11712,'spell_curse_of_agony'),
 (11713,'spell_curse_of_agony'),
 (27218,'spell_curse_of_agony'),
+(1454,'spell_life_tap'),
+(1455,'spell_life_tap'),
+(1456,'spell_life_tap'),
+(11687,'spell_life_tap'),
+(11688,'spell_life_tap'),
+(11689,'spell_life_tap'),
+(27222,'spell_life_tap'),
+(35696,'spell_demonic_knowledge'),
 (30108,'spell_unstable_affliction'),
 (30404,'spell_unstable_affliction'),
 (30405,'spell_unstable_affliction'),
 (32379,'spell_shadow_word_death'),
 (32996,'spell_shadow_word_death');
+
+-- Pet Scaling
+INSERT INTO spell_scripts(Id, ScriptName) VALUES
+(34902,'spell_hunter_pet_scaling_1'),
+(34903,'spell_hunter_pet_scaling_2'),
+(34904,'spell_hunter_pet_scaling_3'),
+
+(34947,'spell_warlock_pet_scaling_1'),
+(34956,'spell_warlock_pet_scaling_2'),
+(34957,'spell_warlock_pet_scaling_3'),
+(34958,'spell_warlock_pet_scaling_4'),
+
+(35657,'spell_mage_pet_scaling_1'),
+(35658,'spell_mage_pet_scaling_2'),
+(35659,'spell_mage_pet_scaling_3'),
+(35660,'spell_mage_pet_scaling_4'),
+
+(35661,'spell_priest_pet_scaling_1'),
+(35662,'spell_priest_pet_scaling_2'),
+(35663,'spell_priest_pet_scaling_3'),
+(35664,'spell_priest_pet_scaling_4'),
+
+(35665,'spell_elemental_pet_scaling_1'),
+(35666,'spell_elemental_pet_scaling_2'),
+(35667,'spell_elemental_pet_scaling_3'),
+(35668,'spell_elemental_pet_scaling_4'),
+
+(35669,'spell_druid_pet_scaling_1'),
+(35670,'spell_druid_pet_scaling_2'),
+(35671,'spell_druid_pet_scaling_3'),
+(35672,'spell_druid_pet_scaling_4'),
+
+(35674,'spell_enhancement_pet_scaling_1'),
+(35675,'spell_enhancement_pet_scaling_2'),
+(35676,'spell_enhancement_pet_scaling_3'),
+
+(36186,'spell_infernal_pet_scaling_1'),
+(36188,'spell_infernal_pet_scaling_2'),
+(36189,'spell_infernal_pet_scaling_3'),
+(36190,'spell_infernal_pet_scaling_4');
 
 -- Alterac Valley
 INSERT INTO spell_scripts(Id, ScriptName) VALUES

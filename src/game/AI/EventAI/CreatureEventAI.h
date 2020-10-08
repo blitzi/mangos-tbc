@@ -594,6 +594,7 @@ struct CreatureEventAI_Event
             uint32 percentMin;
             uint32 repeatMin;
             uint32 repeatMax;
+            uint32 allowOutOfCombat;
         } percent_range;
         // EVENT_T_KILL                                     = 5
         struct
@@ -903,6 +904,7 @@ class CreatureEventAI : public CreatureAI
         std::unordered_set<uint32> m_distanceSpells;
         uint32 m_mainSpellId;
         uint32 m_mainSpellCost;
+        SpellEntry const* m_mainSpellInfo;
         float m_mainSpellMinRange;
         SpellSchoolMask m_mainAttackMask;
 

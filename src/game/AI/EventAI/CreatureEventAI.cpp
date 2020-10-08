@@ -105,6 +105,10 @@ CreatureEventAI::CreatureEventAI(Creature* creature) : CreatureAI(creature),
     m_rangedModeSetting(TYPE_NONE),
     m_chaseDistance(0.f),
     m_currentRangedMode(false),
+    m_mainSpellId(0),
+    m_mainSpellCost(0),
+    m_mainSpellInfo(nullptr),
+    m_mainSpellMinRange(0.f),
     m_defaultMovement(IDLE_MOTION_TYPE),
     m_mainAttackMask(SPELL_SCHOOL_MASK_NONE)
 {
@@ -189,6 +193,7 @@ void CreatureEventAI::InitAI()
                                     m_mainSpellCost = Spell::CalculatePowerCost(spellInfo, m_creature);
                                     m_mainSpellMinRange = GetSpellMinRange(sSpellRangeStore.LookupEntry(spellInfo->rangeIndex));
                                     m_mainAttackMask = SpellSchoolMask(m_mainAttackMask + spellInfo->SchoolMask);
+                                    m_mainSpellInfo = spellInfo;
                                 }
                                 m_mainSpells.insert(i.action[actionIdx].cast.spellId);
                             }
@@ -347,7 +352,7 @@ bool CreatureEventAI::CheckEvent(CreatureEventAIHolder& holder, Unit* actionInvo
             break;
         case EVENT_T_HP:
         {
-            if (!m_creature->IsInCombat() || !m_creature->GetMaxHealth())
+            if (!event.percent_range.allowOutOfCombat && (!m_creature->IsInCombat() || !m_creature->GetMaxHealth()))
                 return false;
 
             uint32 perc = (m_creature->GetHealth() * 100) / m_creature->GetMaxHealth();
@@ -1623,12 +1628,16 @@ void CreatureEventAI::UpdateAI(const uint32 diff)
     {
         if (m_rangedMode && CanExecuteCombatAction())
         {
-            if (m_currentRangedMode && m_rangedModeSetting == TYPE_PROXIMITY && m_creature->CanReachWithMeleeAttack(victim))
-                SetCurrentRangedMode(false);
+            if (m_rangedModeSetting == TYPE_PROXIMITY)
+            {
+                if (m_currentRangedMode && m_creature->CanReachWithMeleeAttack(victim))
+                    SetCurrentRangedMode(false);
+                else if (!m_currentRangedMode && !m_creature->CanReachWithMeleeAttack(victim, 2.f) && m_mainSpellInfo && m_mainSpellCost * 2 < m_creature->GetPower(POWER_MANA) && m_creature->IsSpellReady(*m_mainSpellInfo))
+                    SetCurrentRangedMode(true);
+            }
         }
 
-        if (!m_currentRangedMode)
-            DoMeleeAttackIfReady();
+        DoMeleeAttackIfReady();
     }
 
 	UnitAI::UpdateAI(diff);
@@ -1935,7 +1944,6 @@ void CreatureEventAI::SetRangedMode(bool state, float distance, RangeModeType ty
     m_rangedMode = state;
     m_chaseDistance = distance;
     m_rangedModeSetting = type;
-    m_meleeEnabled = !state;
 
     if (m_creature->IsInCombat())
         SetCurrentRangedMode(state);
@@ -1951,9 +1959,7 @@ void CreatureEventAI::SetCurrentRangedMode(bool state)
     if (state)
     {
         m_currentRangedMode = true;
-        m_meleeEnabled = false;
         m_attackDistance = m_chaseDistance;
-        m_creature->MeleeAttackStop(m_creature->GetVictim());
         DoStartMovement(m_creature->GetVictim());
     }
     else
@@ -1962,9 +1968,7 @@ void CreatureEventAI::SetCurrentRangedMode(bool state)
             return;
 
         m_currentRangedMode = false;
-        m_meleeEnabled = true;
         m_attackDistance = 0.f;
-        m_creature->MeleeAttackStart(m_creature->GetVictim());
         DoStartMovement(m_creature->GetVictim());
     }
 }

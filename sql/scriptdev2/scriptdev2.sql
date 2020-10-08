@@ -75,6 +75,9 @@ UPDATE creature_template SET ScriptName='boss_taerar' WHERE entry=14890;
 UPDATE creature_template SET ScriptName='boss_azuregos' WHERE entry=6109;
 UPDATE creature_template SET ScriptName='boss_lethon' WHERE entry=14888;
 UPDATE creature_template SET ScriptName='npc_spirit_shade' WHERE entry=15261;
+UPDATE creature_template SET ScriptName='boss_highlord_kruul' WHERE entry=18338;
+UPDATE creature_template SET ScriptName='npc_infernal_hound' WHERE entry=19207;
+UPDATE gameobject_template SET ScriptName='go_infernaling_summoner' WHERE entry=183278;
 
 /* GO */
 UPDATE gameobject_template SET ScriptName='go_ethereum_prison' WHERE entry BETWEEN 184418 AND 184431;
@@ -154,7 +157,7 @@ UPDATE creature_template SET ScriptName='npc_quest_attunement' WHERE entry IN(22
 /* SPELL */
 UPDATE creature_template SET ScriptName='spell_dummy_npc' WHERE entry IN (
 -- eastern kingdoms
-1200,8888,13016,
+8888,13016,
 -- kalimdor
 9299,12296,12298,
 -- outland
@@ -187,6 +190,10 @@ INSERT INTO scripted_event_id VALUES
 (15323,'event_transports'),
 (15324,'event_transports'),
 (15325,'event_transports');
+
+/* War Effort*/
+UPDATE creature_template SET ScriptName='npc_war_effort' WHERE
+entry IN(15383,15431,15432,15434,15437,15445,15446,15448,15450,15451,15452,15453,15455,15456,15457,15459,15460,15469,15477,15508,15512,15515,15522,15525,15528,15529,15532,15533,15534,15535);
 
 /*  */
 /* ZONE */
@@ -431,6 +438,9 @@ UPDATE creature_template SET ScriptName='npc_disruptor_tower' WHERE entry IN(232
 UPDATE creature_template SET ScriptName='npc_grand_collector' WHERE entry IN(23333);
 
 /* BLASTED LANDS */
+UPDATE creature_template SET ScriptName='boss_kazzak' WHERE entry=12397;
+UPDATE creature_template SET ScriptName='npc_agent_proudwell' WHERE entry=19942;
+UPDATE gameobject_template SET ScriptName='go_infernaling_summoner_portal_hound' WHERE entry=183357;
 
 /* BLOODMYST ISLE */
 UPDATE creature_template SET ScriptName='mob_webbed_creature' WHERE entry=17680;
@@ -706,6 +716,7 @@ UPDATE creature_template SET ScriptName='npc_laughing_skull' WHERE entry=17418;
 UPDATE creature_template SET ScriptName='npc_maghar_escort' WHERE entry=17417;
 DELETE FROM scripted_event_id WHERE id=10745;
 INSERT INTO scripted_event_id VALUES(10745,'npc_vindicator_sedai');
+UPDATE gameobject_template SET ScriptName='go_kaliri_nest' WHERE entry IN(181582);
 
 /* HILLSBRAD FOOTHILLS */
 
@@ -2303,7 +2314,7 @@ INSERT INTO script_texts (entry,content_default,sound,type,language,emote,broadc
 ('-1001079','Halt.','0','0','0','0','0','taelan fordring SAY_TAELAN_MOUNT'),
 ('-1001080','%s calls for his mount.','0','2','0','22','0','taelan fordring EMOTE_TAELAN_MOUNT'),
 ('-1001081','It''s not much further. The main road is just up ahead.','0','0','0','1','0','taelan fordring SAY_REACH_TOWER'),
-('-1001082','You will not make it to the forest''s edge, Fordring.','0','0','0','1','0','isillien SAY_ISILLIEN_1'),
+('-1001082','You will not make it to the forest''s edge, Fordring.','0','1','0','1','0','isillien SAY_ISILLIEN_1'),
 ('-1001083','Isillien!','0','1','0','25','0','taelan fordring SAY_ISILLIEN_2'),
 ('-1001084','This is not your fight, stranger. Protect yourself from the attacks of the Crimson Elite. I shall battle the Grand Inquisitor.','0','0','0','1','0','taelan fordring SAY_ISILLIEN_3'),
 ('-1001085','You disappoint me, Taelan. I had plans for you... grand plans. Alas, it was only a matter of time before your filthy bloodline would catch up with you.','0','0','0','1','0','isillien SAY_ISILLIEN_4'),
@@ -2528,7 +2539,8 @@ INSERT INTO script_texts (entry,content_default,sound,type,language,emote,broadc
 ('-1010026','We\'ve done it! Meet me back by Jer\'kai above the Grim Totem camp.','0','0','0','0','4080','Kindal Moonweaver SAY_QUEST_COMPLETE'),
 
 ('-1010027','%s is lured out by the sweet scent of the purified food.','0','2','0','0','5617','Blackwood Furbolg - on event 3938'),
-('-1010028','%s begins to greedily devour the food.','0','2','0','0','5618','Blackwood Furbolg - on event 3938');
+('-1010028','%s begins to greedily devour the food.','0','2','0','0','5618','Blackwood Furbolg - on event 3938'),
+('-1010029','Help! We''re being attacked! Dark Irons!','0','1','0','0','494','SAY_MIRAN_AMBUSH');
 
 -- -1 015 000 TBC texts
 INSERT INTO script_texts (entry,content_default,sound,type,language,emote,broadcast_text_id,comment) VALUES
@@ -2604,7 +2616,39 @@ INSERT INTO script_texts (entry,content_default,sound,type,language,emote,broadc
 ('-1015069','Fel orcs!','0','0','0','0','0','Vindicator Sedai SAY 3'),
 ('-1015070','The cycle of bloodshed is unending... Is there nothing I can do?','0','0','0','0','0','Vindicator Sedai SAY 4'),
 ('-1015071','You can die!','0','0','0','0','0','Krun Spinebreaker SAY 1'),
-('-1015072','%s plants the Flag of Ownership in the corpse of $N.','0','0','0','0','0','Item - Flag of Ownership');
+('-1015072','%s plants the Flag of Ownership in the corpse of $N.','0','0','0','0','0','Item - Flag of Ownership'),
+
+('-1015073','Azeroth has cowered too long under our shadow!  Now, feel the power of the Burning Crusade and despair!','0','1','0','0','16046','kruul SAY_INTRO1'),
+('-1015074','Your fate is sealed, Azeroth!  I will find the Aspect Shards, and then you will not stand against our might!','0','1','0','0','16047','kruul SAY_INTRO2'),
+('-1015075','Cower, little worms!  Your feeble heroes are nothing!  Your saviors will be our first feast!','0','1','0','0','16045','kruul SAY_AGGRO1'),
+('-1015076','Where?  Where are the Shards!  You cannot hide them from us!','0','1','0','0','17097','kruul SAY_AGGRO2'),
+('-1015077','Your world will die, mortals!  Your doom is now at hand!','0','1','0','0','16044','kruul SAY_AGGRO3'),
+('-1015078','Your own strength feeds me, $n!','0','1','0','0','8461','kruul SAY_KILL'),
+('-1015079','Hah!  This place is not yet worthy of my infliction!','0','1','0','0','16048','kruul SAY_DESPAWN'),
+
+('-1015080','Marshals... brothers and sisters of the sword.  I''d rather fight alongside you than any army of thousands.  We are lions!  You know what''s waiting through these demons and beyond that Dark Portal?  Immortality!  Take it!','0','1','0','0','16545','lord marshal raynor LMR_SPAWN'),
+('-1015081','Yes. Fight and you may die. Run and you will live, but for how long?  The devils are upon us!  And those not here, dying in their villages weeks from now, would they be willing to trade all the days from this day to that, for one chance to come here and stop these horrors from invading our world?','0','0','0','0','16548','lord marshal raynor LMR_RANDOM_TEXT_1'),
+('-1015082','Everyone fights.  No one quits.','0','0','0','0','16549','lord marshal raynor LMR_RANDOM_TEXT_2'),
+('-1015083','Hold your ground! Hold your ground! Sons of the Alliance!  Of the Horde! My brothers and sisters!  I see in your eyes the same fear that would wither my own heart. A day may come when our courage fails, when we forsake our friends and break our fellowships... but it is not this day.','0','0','0','0','16550','lord marshal raynor LMR_RANDOM_TEXT_3'),
+('-1015084','This day we fight!! By all that you hold dear in these good lands, I bid you stand, heroes of Azeroth!','0','0','0','0','16551','lord marshal raynor LMR_RANDOM_TEXT_4'),
+('-1015085','We few, we happy few, we band of brothers and sisters.  For those today that shed their blood with me, Shall be my kin; be they never so vile, This day shall gentle their conditions.','0','0','0','0','16552','lord marshal raynor LMR_RANDOM_TEXT_5'),
+('-1015086','Argent Dawn! We go to gather more aid!  Fight on, brothers and sisters.  And know that you will not long fight alone!','0','1','0','0','16934','lord marshal raynor LMR_DESPAWN'),
+
+('-1015087','Soldiers of Azeroth, you now fight against the vile Burning Crusade.  And the hopes and prayers of all Light-loving people march with you.  In the company of our brave allies and brothers-in-arms you will hold your ground and break this demonic charge.  You will stem the destructive tyranny that rages across so many worlds.','0','1','0','0','16625','justinius the harbinger JTH_SPAWN'),
+('-1015088','With each passing moment, I see the people of Azeroth prove again the reasons we have come.  It is with solemn pride that I fight with you, and if I die this day, then I die among friends.','0','0','0','0','16633','justinius the harbinger JTH_RANDOM_TEXT_1'),
+('-1015089','The demons should be in no doubt that we are their nemesis and, though they wish our destruction, it is we who will bring about their ruin.  Kazzak and his forces will be diminished and defeated by this coalition.  And to do this, we must throw at them our bodies and hearts, for they seek no less than the obliteration of this world.','0','0','0','0','16627','justinius the harbinger JTH_RANDOM_TEXT_2'),
+('-1015090','Yes!  Hold your feet firm!  Lend aid to your cohorts and together our banded strength will overcome these demons!  Cling fiercely to hope and grip tightly your weapons, and trust that the Light will pierce this darkness and shine through to morrow''s dawn!','0','0','0','0','16631','justinius the harbinger JTH_RANDOM_TEXT_4'),
+('-1015091','Fight on, good people of Azeroth.  And take heart!  Your brethren rush to this hellish portal and will soon throw themselves at these demons as you have so bravely done.  May the Light keep you!','0','1','0','0','16933','justinius the harbinger JTH_DESPAWN_1'),
+
+('-1015092','Hunters, to me! Let us show these demons what it is to fight and die in Azeroth!','0','1','0','0','16616','melgromm highmountain MH_SPAWN'),
+('-1015093','The spirits sing to us!  They sing the song of battle!','0','0','0','0','16617','melgromm highmountain MH_RANDOM_1'),
+('-1015094','Strike true, brothers and sisters!  Today our quarry is demons!','0','0','0','0','16618','melgromm highmountain MH_RANDOM_2'),
+('-1015095','Once again, we will show this Burning Legion that our world is not for the taking!','0','0','0','0','16620','melgromm highmountain MH_RANDOM_3'),
+('-1015096','These fiends will fail!  For Azeroth!','0','0','0','0','16621','melgromm highmountain MH_RANDOM_4'),
+('-1015097','If it is our fate to die this day, then we will not go easy!  Mark me, these demons will fall like wheat!','0','0','0','0','16622','melgromm highmountain MH_RANDOM_5'),
+('-1015098','Though your sinews tire and your blood flows from cuts and wounds to this sodden ground, you fight for the spirits of your world.  No evil force can stand against us!','0','0','0','0','16624','melgromm highmountain MH_RANDOM_6'),
+('-1015099','My brethren, my comrades-in-arms!  I must go to seek the forces of the Horde and direct them here!  Keep your spirits strong, brave hunters!  Do not fall to the portal-spawned fiends!','0','0','0','0','16935','melgromm highmountain MH_DESPAWN');
+
 -- -1 020 000 WOTLK texts
 
 -- -1 033 000 SHADOWFANG KEEP
@@ -5187,10 +5231,10 @@ INSERT INTO script_waypoint VALUES
 (1379,0,21,-5688.68,-3769,323.957,0,0,0,''),
 (1379,0,22,-5688.14,-3782.65,322.667,0,0,0,''),
 (1379,0,23,-5699.23,-3792.65,322.448,0,30000,0,'Protecting the Shipment - End'),
-(1379,0,24,-5700.8,-3792.78,322.588,0,0,0,''),
+(1379,0,24,-5700.8,-3792.78,322.588,0,0,5000,''),
 (1840,0,1,2689.68,-1937.47,72.14,0,0,0,''),
 (1840,0,2,2683.11,-1926.82,72.14,0,0,0,''),
-(1840,0,3,2678.73,-1919.42,68.86,0,0,0,'escort paused'),
+(1840,0,3,2678.73,-1919.42,68.86,2.11887,1000,0,'escort paused'),
 (1842,0,1,2941.75,-1391.82,167.237,0,0,0,'SAY_ESCORT_START'),
 (1842,0,2,2940.56,-1393.64,165.943,0,0,0,''),
 (1842,0,3,2932.19,-1410.66,165.943,0,0,0,''),
@@ -5216,7 +5260,7 @@ INSERT INTO script_waypoint VALUES
 (1842,0,23,2929.22,-1415.79,150.504,0,0,0,''),
 (1842,0,24,2921.17,-1431.68,150.781,0,0,0,''),
 (1842,0,25,2917.47,-1438.78,150.781,0,0,0,''),
-(1842,0,26,2913.05,-1453.52,148.098,0,0,0,'SAY_TAELAN_MOUNT'),
+(1842,0,26,2913.05,-1453.52,148.098,4.81279,1000,0,'SAY_TAELAN_MOUNT'),
 (1842,0,27,2913.83,-1474.93,146.224,0,0,0,''),
 (1842,0,28,2906.81,-1487.06,146.224,0,0,0,''),
 (1842,0,29,2900.64,-1496.57,146.306,0,0,0,''),
@@ -5246,7 +5290,8 @@ INSERT INTO script_waypoint VALUES
 (1842,0,53,2698.09,-1853.87,68.999,0,0,0,''),
 (1842,0,54,2693.66,-1870.24,66.882,0,0,0,''),
 (1842,0,55,2682.35,-1885.25,66.009,0,0,0,''),
-(1842,0,56,2668.23,-1900.8,66.256,0,0,0,'SAY_REACH_TOWER - escort paused'),
+(1842,0,56,2668.23,-1900.8,66.256,3.50205,15000,0,'SAY_REACH_TOWER - escort paused'),
+(1842,0,57,2668.23,-1900.8,66.256,3.50205,0,0,''),
 (1978,0,1,1406.32,1083.1,52.55,0,0,0,''),
 (1978,0,2,1400.49,1080.42,52.5,0,0,0,'SAY_START_2'),
 (1978,0,3,1388.48,1083.1,52.52,0,0,0,''),
@@ -6607,7 +6652,8 @@ INSERT INTO script_waypoint VALUES
 (11856,0,19,-38.88,-520.72,-46.06,0,5000,0,'END'),
 (12126,0,1,2631.23,-1917.93,72.59,0,0,0,''),
 (12126,0,2,2643.53,-1914.07,71,0,0,0,''),
-(12126,0,3,2653.83,-1907.54,69.34,0,0,0,'escort paused'),
+(12126,0,3,2653.83,-1907.54,69.34,0,1000,0,'escort paused'),
+(12126,0,4,2653.83,-1907.54,69.34,0,1000,0,''),
 (12277,0,1,-1154.87,2708.16,111.123,0,1000,0,'SAY_MELIZZA_START'),
 (12277,0,2,-1162.62,2712.86,111.549,0,0,0,''),
 (12277,0,3,-1183.37,2709.45,111.601,0,0,0,''),

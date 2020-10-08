@@ -546,7 +546,7 @@ void WorldSession::LogoutPlayer()
             if (BattleGroundQueueTypeId bgQueueTypeId = _player->GetBattleGroundQueueTypeId(i))
             {
                 _player->RemoveBattleGroundQueueId(bgQueueTypeId);
-                sBattleGroundMgr.m_BattleGroundQueues[ bgQueueTypeId ].RemovePlayer(_player->GetObjectGuid(), true);
+                sBattleGroundMgr.m_battleGroundQueues[ bgQueueTypeId ].RemovePlayer(_player->GetObjectGuid(), true);
             }
         }
 
@@ -958,6 +958,14 @@ void WorldSession::SynchronizeMovement(MovementInfo &movementInfo)
     }
     else
         movementInfo.UpdateTime((uint32)movementTime);
+}
+
+std::deque<uint32> WorldSession::GetOpcodeHistory()
+{
+    if (m_Socket)
+        return m_Socket->GetOpcodeHistory();
+    else
+        return std::deque<uint32>();
 }
 
 void WorldSession::SendAuthOk() const

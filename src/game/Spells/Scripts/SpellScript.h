@@ -63,9 +63,9 @@ struct AuraScript
     // called on SpellAuraHolder creation
     virtual void OnHolderInit(SpellAuraHolder* /*holder*/) const {}
     // called during any event that calculates aura modifier amount - caster can be nullptr
-    virtual int32 OnAuraValueCalculate(Aura* /*aura*/, Unit* /*caster*/, int32 damage) const { return damage; }
+    virtual int32 OnAuraValueCalculate(Aura* /*aura*/, Unit* /*caster*/, int32 value) const { return value; }
     // called during done/taken damage calculation
-    virtual void OnDamageCalculate(Aura* /*aura*/, int32& /*advertisedBenefit*/, float& /*totalMod*/) {}
+    virtual void OnDamageCalculate(Aura* /*aura*/, int32& /*advertisedBenefit*/, float& /*totalMod*/) const {}
     // called before aura apply and after aura unapply
     virtual void OnApply(Aura* /*aura*/, bool /*apply*/) const {}
     // called during proc eligibility checking
@@ -113,13 +113,13 @@ class SpellScriptMgr
         static std::map<std::string, AuraScript*> m_auraScriptStringMap;
 };
 
-template <class T, class U>
+template <class T>
 void RegisterScript(std::string stringName)
 {
     static_assert(std::is_base_of<SpellScript, T>::value, "T not derived from SpellScript");
-    static_assert(std::is_base_of<AuraScript, U>::value, "T not derived from AuraScript");
+    static_assert(std::is_base_of<AuraScript, T>::value, "T not derived from AuraScript");
     SpellScriptMgr::SetSpellScript(stringName, new T());
-    SpellScriptMgr::SetAuraScript(stringName, new U());
+    SpellScriptMgr::SetAuraScript(stringName, new T());
 }
 
 template <class T>

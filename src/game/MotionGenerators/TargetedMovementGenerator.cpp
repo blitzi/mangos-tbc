@@ -465,7 +465,7 @@ void ChaseMovementGenerator::CutPath(Unit& owner, PointsArray& path)
             const G3D::Vector3& data = path.at(i);
             if (this->i_target->GetDistance(data.x, data.y, data.z, DIST_CALC_SQ) > distSquared)
                 continue;
-            if (!owner.GetMap()->IsInLineOfSight(tarX, tarY, tarZ + 2.0f, data.x, data.y, data.z + 2.0f, IGNORE_M2))
+            if (!owner.GetMap()->IsInLineOfSight(tarX, tarY, tarZ + i_target->GetCollisionHeight(), data.x, data.y, data.z + owner.GetCollisionHeight(), IGNORE_M2))
                 continue;
             // both in LOS and in range - advance to next and stop
             return path.resize(++i);
@@ -530,8 +530,11 @@ void ChaseMovementGenerator::_setLocation(Unit& owner)
 
     float x, y, z;
 
-    if (_getLocation(owner, x, y, z))
-        DispatchSplineToPosition(owner, x, y, z, EnableWalking(), true, true);
+    if (RequiresNewPosition(owner, owner.GetPositionX(), owner.GetPositionY(), owner.GetPositionZ()) && _getLocation(owner, x, y, z))
+    {
+        if (DispatchSplineToPosition(owner, x, y, z, EnableWalking(), true, true))
+            this->i_target->GetPosition(this->i_lastTargetPos.x, this->i_lastTargetPos.y, this->i_lastTargetPos.z);
+    }
     else
         return;
 
@@ -568,10 +571,6 @@ float FollowMovementGenerator::GetSpeed(Unit& owner) const
 
     // Use default speed when a mix of PC and NPC units involved (escorting?)
     if (owner.HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED) != i_target->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED))
-        return speed;
-
-    // Use default speed when debuffed or somehow constrained in speed
-    if (owner.GetSpeedRate(type) < 1.0f || owner.HasAuraType(SPELL_AURA_USE_NORMAL_MOVEMENT_SPEED))
         return speed;
 
     // Followers sync with master's speed when not in combat
