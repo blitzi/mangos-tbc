@@ -5774,7 +5774,7 @@ SpellCastResult Spell::CheckRange(bool strict)
 
     if (m_targets.m_targetMask == TARGET_FLAG_SOURCE_LOCATION)
     {
-        float dist = m_caster->GetDistance(m_targets.m_srcX, m_targets.m_srcY, m_targets.m_srcZ, DIST_CALC_NONE);
+        float dist = m_caster->GetDistance(m_targets.m_srcX, m_targets.m_srcY, m_targets.m_srcZ, DIST_CALC_SQ);
         if (dist > maxRange* maxRange)
             return SPELL_FAILED_OUT_OF_RANGE;
         if (minRange && dist < minRange * minRange)
