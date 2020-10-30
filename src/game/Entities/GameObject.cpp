@@ -2390,7 +2390,7 @@ bool GameObject::_IsWithinDist(WorldObject const* obj, float dist2compare, bool 
     // TODO: needs more research
     if (GetGoType() == GAMEOBJECT_TYPE_TRAP && GetGOInfo()->GetLockId() == 12)
     {
-        float distsq = GetDistance(obj, is3D, DIST_CALC_NONE);
+        float distsq = GetDistance(obj, is3D, DIST_CALC_SQ);
         return distsq < dist2compare * dist2compare;
     }
 
