@@ -490,6 +490,7 @@ inline bool IsSpellRemovedOnEvade(SpellEntry const* spellInfo)
         case 33908:         // Burning Spikes
         case 34343:         // Thorns
         case 35194:         // Shadowform
+        case 35281:         // Raging Flames
         case 35319:         // Electric Skin
         case 35408:         // Fear Proc
         case 35596:         // Power of the Legion
@@ -917,6 +918,15 @@ inline bool HasMissingTargetFromClient(SpellEntry const* spellInfo)
 
     if (IsUnitTargetTarget(spellInfo->EffectImplicitTargetA[EFFECT_INDEX_1]) || IsUnitTargetTarget(spellInfo->EffectImplicitTargetA[EFFECT_INDEX_2]))
         return true;
+
+    return false;
+}
+
+inline bool IsSpellRequireTarget(SpellEntry const* spellInfo)
+{
+    for (uint32 i = 0; i < MAX_EFFECT_INDEX; ++i)
+        if (IsUnitTargetTarget(spellInfo->EffectImplicitTargetA[i]))
+            return true;
 
     return false;
 }
@@ -1399,7 +1409,6 @@ inline uint32 GetAffectedTargets(SpellEntry const* spellInfo, WorldObject* caste
                 case 46650:                                 // Open Brutallus Back Door (SWP, Felmyst)
                     return 4;
                 case 29232:                                 // Fungal Bloom (Loatheb)
-                case 30843:                                 // Enfeeble (Karazhan, Prince Malchezaar)
                 case 40243:                                 // Crushing Shadows (BT, Teron Gorefiend)
                 case 42005:                                 // Bloodboil (BT, Gurtogg Bloodboil)
                 case 45641:                                 // Fire Bloom (SWP, Kil'jaeden)
