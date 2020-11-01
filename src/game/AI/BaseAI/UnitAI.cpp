@@ -459,23 +459,12 @@ void UnitAI::UpdateAI(uint32 diff)
 		return;
 	}
 
-	if (m_HelpVictim->GetTypeId() == TYPEID_PLAYER)
-	{
-		int x = 0;
-	}
-
 	if (m_DetectHelpTimer)
 	{
 		if (m_DetectHelpTimer <= diff)
 		{
 			m_DetectHelpTimer = 0;
-
-			if (m_HelpMe->IsCreature())
-				((Creature*)m_HelpMe)->SetNoCallAssistance(true);
-
 			AttackStart(m_HelpVictim);
-			if (m_HelpWho->AI() && m_HelpWho->AI()->GetAIOrder() == ORDER_FLEEING)
-				m_HelpWho->GetMotionMaster()->InterruptPanic();
 		}
 		else
 			m_DetectHelpTimer -= diff;
