@@ -86,7 +86,7 @@ void PlayerAI::AttackClosestEnemy()
     float distance = FLT_MAX;
     AttackSpecificEnemy([&](Unit* enemy, Unit*& closestEnemy) mutable
     {
-        float curDistance = enemy->GetDistance(m_unit, true, DIST_CALC_NONE);
+        float curDistance = enemy->GetDistance(m_unit, true, DIST_CALC_SQ);
         if (!closestEnemy || (!closestEnemy->IsPlayer() && enemy->IsPlayer()) || curDistance < distance)
         {
             closestEnemy = enemy;

@@ -10745,7 +10745,7 @@ void Unit::NearTeleportTo(float x, float y, float z, float orientation, bool cas
     if (IsPlayer())
     {
         uint32 options = TELE_TO_NOT_LEAVE_TRANSPORT | (casting ? TELE_TO_SPELL : 0);
-        if (GetDistance(x, y, z, DIST_CALC_NONE) < 100.f * 100.f)
+        if (GetDistance(x, y, z, DIST_CALC_SQ) < 100.f * 100.f)
             options |= TELE_TO_NOT_LEAVE_COMBAT;
         static_cast<Player*>(this)->TeleportTo(GetMapId(), x, y, z, orientation, options);
     }

@@ -990,18 +990,18 @@ struct boss_illidan_stormrageAI : public CombatAI, private DialogueHelper
                             //uint32 secondEyeBlastPos = 0;
                             //for (uint32 i = 1; i < 4; ++i)
                             //{
-                            //    if (m_creature->GetDistance(illidanFlightPos[firstEyeBlastPos].fX, illidanFlightPos[firstEyeBlastPos].fY, illidanFlightPos[firstEyeBlastPos].fZ, DIST_CALC_NONE)
-                            //        > m_creature->GetDistance(illidanFlightPos[i].fX, illidanFlightPos[i].fY, illidanFlightPos[i].fZ, DIST_CALC_NONE))
+                            //    if (m_creature->GetDistance(illidanFlightPos[firstEyeBlastPos].fX, illidanFlightPos[firstEyeBlastPos].fY, illidanFlightPos[firstEyeBlastPos].fZ, DIST_CALC_SQ)
+                            //        > m_creature->GetDistance(illidanFlightPos[i].fX, illidanFlightPos[i].fY, illidanFlightPos[i].fZ, DIST_CALC_SQ))
                             //    {
-                            //        if (m_creature->GetDistance(illidanFlightPos[secondEyeBlastPos].fX, illidanFlightPos[secondEyeBlastPos].fY, illidanFlightPos[secondEyeBlastPos].fZ, DIST_CALC_NONE)
-                            //            > m_creature->GetDistance(illidanFlightPos[firstEyeBlastPos].fX, illidanFlightPos[firstEyeBlastPos].fY, illidanFlightPos[firstEyeBlastPos].fZ, DIST_CALC_NONE))
+                            //        if (m_creature->GetDistance(illidanFlightPos[secondEyeBlastPos].fX, illidanFlightPos[secondEyeBlastPos].fY, illidanFlightPos[secondEyeBlastPos].fZ, DIST_CALC_SQ)
+                            //            > m_creature->GetDistance(illidanFlightPos[firstEyeBlastPos].fX, illidanFlightPos[firstEyeBlastPos].fY, illidanFlightPos[firstEyeBlastPos].fZ, DIST_CALC_SQ))
                             //        {
                             //            secondEyeBlastPos = firstEyeBlastPos;
                             //        }
                             //        firstEyeBlastPos = i;
                             //    }
-                            //    else if (m_creature->GetDistance(illidanFlightPos[secondEyeBlastPos].fX, illidanFlightPos[secondEyeBlastPos].fY, illidanFlightPos[secondEyeBlastPos].fZ, DIST_CALC_NONE)
-                            //        > m_creature->GetDistance(illidanFlightPos[i].fX, illidanFlightPos[i].fY, illidanFlightPos[i].fZ, DIST_CALC_NONE))
+                            //    else if (m_creature->GetDistance(illidanFlightPos[secondEyeBlastPos].fX, illidanFlightPos[secondEyeBlastPos].fY, illidanFlightPos[secondEyeBlastPos].fZ, DIST_CALC_SQ)
+                            //        > m_creature->GetDistance(illidanFlightPos[i].fX, illidanFlightPos[i].fY, illidanFlightPos[i].fZ, DIST_CALC_SQ))
                             //    {
                             //        secondEyeBlastPos = i;
                             //    }

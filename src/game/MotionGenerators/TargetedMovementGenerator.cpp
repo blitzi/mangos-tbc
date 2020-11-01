@@ -216,7 +216,7 @@ void ChaseMovementGenerator::HandleTargetedMovement(Unit& owner, const uint32& t
                 z = end.z;
             }
 
-            if (owner.GetDistance(x, y, z, DIST_CALC_NONE) > 0.3f)
+            if (owner.GetDistance(x, y, z, DIST_CALC_SQ) > 0.3f)
             {
                 if (DispatchSplineToPosition(owner, x, y, z, EnableWalking(), true, true))
                 {

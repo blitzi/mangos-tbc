@@ -290,7 +290,7 @@ class UnitAI
          * Note: Use this function to handle Timers, Threat-Management and MeleeAttacking
          * @param uiDiff Passed time since last call
          */
-		virtual void UpdateAI(const uint32 /*diff*/);
+		virtual void UpdateAI(const uint32 /*diff*/) {};
 
         ///== State checks =================================
 
