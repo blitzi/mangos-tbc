@@ -448,6 +448,8 @@ class Spell
         bool DoSummonCritter(CreatureSummonPositions& list, SummonPropertiesEntry const* prop, SpellEffectIndex effIdx, uint32 level);
         bool DoSummonPossessed(CreatureSummonPositions& list, SummonPropertiesEntry const* prop, SpellEffectIndex effIdx, uint32 level);
 
+        void ProcessDispelList(std::list <std::pair<SpellAuraHolder*, uint32> >& dispel_list);
+
         void WriteSpellGoTargets(WorldPacket& data);
         void WriteAmmoToPacket(WorldPacket& data) const;
 
@@ -572,6 +574,8 @@ class Spell
 
         uint64 GetScriptValue() const { return m_scriptValue; }
         void SetScriptValue(uint64 value) { m_scriptValue = value; }
+        void RegisterAuraProc(Aura* aura);
+        bool IsAuraProcced(Aura* aura);
 
         // Spell Target Subsystem - public part
         // Targets store structures and data
@@ -635,7 +639,7 @@ class Spell
         bool OnCheckTarget(GameObject* target, SpellEffectIndex eff) const;
         bool OnCheckTarget(Unit* target, SpellEffectIndex eff) const;
         void OnCast();
-        void OnHit();
+        void OnHit(SpellMissInfo missInfo);
         void OnAfterHit();
         // effect execution info access - only to be used in OnEffectExecute OnHit and OnAfterHit
         Unit* GetUnitTarget() { return unitTarget; }
@@ -803,6 +807,17 @@ class Spell
         uint32 m_affectedTargetCount;
         float m_jumpRadius;
         SpellTargetFilterScheme m_filteringScheme[MAX_EFFECT_INDEX][2];
+
+        std::set<Aura*> m_procOnceHolder;
+
+        struct EffectSkillInfo
+        {
+            SkillType skillId = SKILL_NONE;
+            int32 reqSkillValue = 0;
+            int32 skillValue = 0;
+        };
+
+        EffectSkillInfo m_effectSkillInfo[MAX_EFFECT_INDEX];
 
         // if need this can be replaced by Aura copy
         // we can't store original aura link to prevent access to deleted auras

@@ -612,6 +612,9 @@ void GroupLootRoll::SendLootRollWon(ObjectGuid const& targetGuid, uint32 rollNum
             case ROLL_NOT_VALID:
                 SendRoll(itr->first, 128, 128);
                 break;
+            case ROLL_GREED:
+                if (rollType == ROLL_NEED)
+                    break;
             default:
                 SendRoll(itr->first, itr->second.number, itr->second.vote);
                 break;
@@ -2299,7 +2302,7 @@ LootStoreItem const* LootTemplate::LootGroup::Roll(Loot const& loot, Player cons
             lootStoreItemVector.push_back(&itr);
 
         // randomize the new vector
-        random_shuffle(lootStoreItemVector.begin(), lootStoreItemVector.end());
+        shuffle(lootStoreItemVector.begin(), lootStoreItemVector.end(), *GetRandomGenerator());
 
         float chance = rand_chance_f();
 
@@ -2332,7 +2335,7 @@ LootStoreItem const* LootTemplate::LootGroup::Roll(Loot const& loot, Player cons
             lootStoreItemVector.push_back(&itr);
 
         // randomize the new vector
-        random_shuffle(lootStoreItemVector.begin(), lootStoreItemVector.end());
+        std::shuffle(lootStoreItemVector.begin(), lootStoreItemVector.end(), *GetRandomGenerator());
 
         // as the new vector is randomized we can start from first element and stop at first one that meet the condition
         for (std::vector <LootStoreItem const*>::const_iterator itr = lootStoreItemVector.begin(); itr != lootStoreItemVector.end(); ++itr)

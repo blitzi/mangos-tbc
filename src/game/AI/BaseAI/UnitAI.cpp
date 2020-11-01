@@ -44,11 +44,7 @@ UnitAI::UnitAI(Unit* unit) :
     m_reactState(REACT_AGGRESSIVE),
     m_combatScriptHappening(false),
     m_currentAIOrder(ORDER_NONE),
-    m_currentSpell(nullptr),
-	m_DetectHelpTimer(HELP_FRIENDLY_UNIT_TIMER),
-	m_HelpMe(nullptr),
-	m_HelpWho(nullptr),
-	m_HelpVictim(nullptr)
+    m_currentSpell(nullptr)
 {
 }
 
@@ -65,13 +61,14 @@ void UnitAI::MoveInLineOfSight(Unit* who)
         if (m_unit->GetDistanceZ(who) > (IsRangedUnit() ? CREATURE_Z_ATTACK_RANGE_RANGED : CREATURE_Z_ATTACK_RANGE_MELEE))
             return;
 
-    if (m_unit->IsNeutralToAll())
-        return;
-	
-	CheckForHelp(who, m_unit, 8);
-
     if (m_unit->GetVictim() && !m_unit->GetMap()->IsDungeon())
         return;
+
+    if (m_unit->IsNeutralToAll())
+        return;
+
+    if (who->GetObjectGuid().IsCreature() && who->IsInCombat())
+        CheckForHelp(who, m_unit, 10.0);
 
     if (!HasReactState(REACT_AGGRESSIVE)) // mobs who are aggressive can still assist
         return;
@@ -93,6 +90,7 @@ void UnitAI::MoveInLineOfSight(Unit* who)
 
 void UnitAI::EnterEvadeMode()
 {
+    ClearSelfRoot();
     m_unit->RemoveAllAurasOnEvade();
     m_unit->CombatStopWithPets(true);
 
@@ -106,7 +104,6 @@ void UnitAI::EnterEvadeMode()
     }
 
     m_unit->TriggerEvadeEvents();
-	ClearSelfRoot();
 }
 
 void UnitAI::AttackedBy(Unit* attacker)
@@ -295,8 +292,9 @@ void UnitAI::OnSpellCastStateChange(Spell const* spell, bool state, WorldObject*
         return;
 
     // Creature should always stop before it will cast a non-instant spell
-    if ((spell->GetCastTime() && spellInfo->InterruptFlags & SPELL_INTERRUPT_FLAG_MOVEMENT) || (IsChanneledSpell(spellInfo) && spellInfo->ChannelInterruptFlags & CHANNEL_FLAG_MOVEMENT))
-        m_unit->StopMoving();
+    if (state)
+        if ((spell->GetCastTime() && spellInfo->InterruptFlags & SPELL_INTERRUPT_FLAG_MOVEMENT) || (IsChanneledSpell(spellInfo) && spellInfo->ChannelInterruptFlags & CHANNEL_FLAG_MOVEMENT))
+            m_unit->StopMoving();
 
     bool forceTarget = false;
 
@@ -398,84 +396,39 @@ void UnitAI::OnChannelStateChange(Spell const* spell, bool state, WorldObject* t
 
 void UnitAI::CheckForHelp(Unit* who, Unit* me, float distance)
 {
-	Unit* victim = who->getAttackerForHelper();
+    Unit* victim = who->getAttackerForHelper();
 
-	//if you already have a victim, return
-	if (victim && m_HelpVictim && m_HelpVictim != victim)
-		return;
+    if (!victim)
+        return;
 
-	bool canHelp = victim && !me->IsInCombat() && !who->hasUnitState(UNIT_STAT_PANIC | UNIT_STAT_RETREATING);
+    if (me->IsInCombat())
+        return;
 
-	if (!canHelp)
-		return;
+    // pulling happens once panic/retreating ends
+    if (who->hasUnitState(UNIT_STAT_PANIC | UNIT_STAT_RETREATING))
+        return;
 
+    if (me->GetMap()->Instanceable())
+        distance = distance / 2.5f;
 
-	bool canAttack = false;
-
-	if (me->CanInitiateAttack() && me->CanAttackOnSight(victim) && victim->isInAccessablePlaceFor(me))
-	{
-		if (me->IsWithinDistInMap(who, distance) && me->IsWithinLOSInMap(who, true))
-		{
-			if (me->CanAssistInCombatAgainst(who, victim))
-			{		
-				canAttack = true;		
-			}
-		}
-	}
-
-	if (canHelp && canAttack)
-	{
-		if (!m_HelpVictim)
-		{	
-			m_DetectHelpTimer = HELP_FRIENDLY_UNIT_TIMER;
-			m_HelpMe = me;
-			m_HelpWho = who;
-			m_HelpVictim = victim;
-		}
-	}
-	else
-	{
-		if (m_HelpVictim)
-		{
-			ClearHelpVictim();
-		}
-	}
+    if (me->CanInitiateAttack() && me->CanAttackOnSight(victim) && victim->isInAccessablePlaceFor(me))
+    {
+        if (me->IsWithinDistInMap(who, distance) && me->IsWithinLOSInMap(who, true))
+        {
+            if (me->CanAssistInCombatAgainst(who, victim))
+            {
+                AttackStart(victim);
+                if (who->AI() && who->AI()->GetAIOrder() == ORDER_FLEEING)
+                    who->GetMotionMaster()->InterruptPanic();
+            }
+        }
+    }
 }
-
-void UnitAI::ClearHelpVictim()
-{
-	m_DetectHelpTimer = 0;
-	m_HelpMe = nullptr;
-	m_HelpWho = nullptr;
-	m_HelpVictim = nullptr;
-}
-
-void UnitAI::UpdateAI(uint32 diff)
-{
-	if (m_HelpMe == nullptr ||
-		m_HelpWho == nullptr ||
-		m_HelpVictim == nullptr)
-	{
-		return;
-	}
-
-	if (m_DetectHelpTimer)
-	{
-		if (m_DetectHelpTimer <= diff)
-		{
-			m_DetectHelpTimer = 0;
-			AttackStart(m_HelpVictim);
-		}
-		else
-			m_DetectHelpTimer -= diff;
-	}
-}
-
 
 void UnitAI::DetectOrAttack(Unit* who)
 {
     float attackRadius = m_unit->GetAttackDistance(who);
-    if (m_unit->GetDistance(who, true, DIST_CALC_SQ) > attackRadius * attackRadius)
+    if (m_unit->GetDistance(who, true, DIST_CALC_NONE) > attackRadius * attackRadius)
         return;
 
     if (!m_unit->IsWithinLOSInMap(who, true))
@@ -510,7 +463,7 @@ bool UnitAI::CanTriggerStealthAlert(Unit* who, float /*attackRadius*/) const
     if (m_unit->hasUnitState(UNIT_STAT_DISTRACTED))
         return false;
 
-    return who->HasStealthAura() && m_unit->GetDistance(who, true, DIST_CALC_SQ) > who->GetVisibilityData().GetStealthVisibilityDistance(m_unit);
+    return who->HasStealthAura() && m_unit->GetDistance(who, true, DIST_CALC_NONE) > who->GetVisibilityData().GetStealthVisibilityDistance(m_unit);
 }
 
 // ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -714,23 +667,32 @@ void UnitAI::DistancingEnded()
     SetCombatScriptStatus(false);
 }
 
-void UnitAI::AttackClosestEnemy()
+void UnitAI::AttackSpecificEnemy(std::function<void(Unit*, Unit*&)> check)
 {
-    Unit* closestEnemy = nullptr;
+    Unit* chosenEnemy = nullptr;
     float distance = FLT_MAX;
     ThreatList const& list = m_unit->getThreatManager().getThreatList();
     for (auto& data : list)
     {
         Unit* enemy = data->getTarget();
-        float curDistance = enemy->GetDistance(m_unit, true, DIST_CALC_SQ);
+        check(enemy, chosenEnemy);
+    }
+
+    AttackStart(chosenEnemy);
+}
+
+void UnitAI::AttackClosestEnemy()
+{
+    float distance = FLT_MAX;
+    AttackSpecificEnemy([&](Unit* enemy, Unit*& closestEnemy)
+    {
+        float curDistance = enemy->GetDistance(m_unit, true, DIST_CALC_NONE);
         if (!closestEnemy || curDistance < distance)
         {
             closestEnemy = enemy;
             distance = curDistance;
         }
-    }
-
-    AttackStart(closestEnemy);
+    });
 }
 
 void UnitAI::SetRootSelf(bool apply, bool combatOnly)
