@@ -27,6 +27,7 @@
 #include "Movement/MoveSplineInit.h"
 #include "Movement/MoveSpline.h"
 #include "Maps/GridDefines.h"
+#include "Entities/Transports.h"
 
 #include <cassert>
 
@@ -138,7 +139,7 @@ void WaypointMovementGenerator<Creature>::Finalize(Creature& creature)
 void WaypointMovementGenerator<Creature>::Interrupt(Creature& creature)
 {
     // be sure we are not already interrupted before saving current pos
-    if (creature.hasUnitState(UNIT_STAT_ROAMING))
+    if (creature.hasUnitState(UNIT_STAT_ROAMING_MOVE))
     {
         // save the current position in case of reset
         creature.GetPosition(m_resetPoint);
@@ -152,6 +153,8 @@ void WaypointMovementGenerator<Creature>::Interrupt(Creature& creature)
 void WaypointMovementGenerator<Creature>::Reset(Creature& creature)
 {
     creature.addUnitState(UNIT_STAT_ROAMING);
+    if (!i_path)
+        return;
     SendNextWayPointPath(creature);
 }
 
@@ -424,7 +427,11 @@ void WaypointMovementGenerator<Creature>::SendNextWayPointPath(Creature& creatur
 
     Vector3 startPos(creature.GetPositionX(), creature.GetPositionY(), creature.GetPositionZ());
     if (!creature.movespline->Finalized())
+    {
+        if (GenericTransport* transport = creature.GetTransport())
+            transport->CalculatePassengerPosition(startPos.x, startPos.y, startPos.z, nullptr);
         startPos = creature.movespline->ComputePosition();
+    }
 
     genPath.push_back(startPos);
 
@@ -463,24 +470,19 @@ void WaypointMovementGenerator<Creature>::SendNextWayPointPath(Creature& creatur
         for (uint32 ptIdx = 0; ptIdx < genPath.size(); ++ptIdx)
         {
             auto pt = genPath[ptIdx];
-            TemporarySpawnWaypoint* wpCreature = new TemporarySpawnWaypoint(creature.GetObjectGuid(), i_currentNode, m_pathId, (uint32)m_PathOrigin);
+            TempSpawnSettings settings;
+            settings.spawner = &creature;
+            settings.entry = VISUAL_WAYPOINT;
+            settings.x = pt.x; settings.y = pt.y; settings.z = pt.z; settings.ori = 0.0f;
+            settings.activeObject = true;
+            settings.despawnTime = 10 * IN_MILLISECONDS;
 
-            CreatureCreatePos pos(creature.GetMap(), pt.x, pt.y, pt.z, 0.0f);
-            CreatureInfo const* waypointInfo = ObjectMgr::GetCreatureTemplate(VISUAL_WAYPOINT);
-            if (!wpCreature->Create(creature.GetMap()->GenerateLocalLowGuid(HIGHGUID_UNIT), pos, waypointInfo))
-            {
-                delete wpCreature;
-                continue;
-            }
+            settings.tempSpawnMovegen = true;
+            settings.waypointId = i_currentNode;
+            settings.spawnPathId = m_pathId;
+            settings.pathOrigin = uint32(m_PathOrigin);
 
-            wpCreature->SetVisibility(VISIBILITY_OFF);
-            wpCreature->SetObjectScale(0.2f);
-            wpCreature->SetRespawnCoord(pos);
-            wpCreature->SetLevel(ptIdx);
-            wpCreature->m_movementInfo.AddMovementFlag(MOVEFLAG_FLYING);
-            wpCreature->SetActiveObjectState(true);
-
-            wpCreature->Summon(TEMPSPAWN_TIMED_DESPAWN, 10 * IN_MILLISECONDS); // Also initializes the AI and MMGen
+            WorldObject::SummonCreature(settings, creature.GetMap());
         }
     }
 
@@ -488,7 +490,7 @@ void WaypointMovementGenerator<Creature>::SendNextWayPointPath(Creature& creatur
     init.MovebyPath(genPath);
     if (nextNode->orientation != 100 && nextNode->delay != 0)
         init.SetFacing(nextNode->orientation);
-    creature.SetWalk(!creature.hasUnitState(UNIT_STAT_RUNNING_STATE) && !creature.IsLevitating(), false);
+    init.SetWalk(!creature.hasUnitState(UNIT_STAT_RUNNING));
 
     // send path to client
     m_pathDuration = init.Launch();
@@ -496,6 +498,8 @@ void WaypointMovementGenerator<Creature>::SendNextWayPointPath(Creature& creatur
     // remove presend time if next node have no delay
     if (nextNode->delay == 0)
         m_pathDuration -= PreSendTime;
+    if (i_path->size() == 1)
+        m_lastReachedWaypoint = 0;
 }
 
 void WaypointMovementGenerator<Creature>::InformAI(Creature& creature, uint32 type, uint32 data)

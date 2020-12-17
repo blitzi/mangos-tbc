@@ -25,6 +25,7 @@
 
 #include "Common.h"
 #include "Timer.h"
+#include "Globals/Locales.h"
 #include "Globals/SharedDefines.h"
 #include "Entities/Object.h"
 #include "Multithreading/Messager.h"
@@ -356,6 +357,7 @@ enum eConfigBoolValues
     CONFIG_BOOL_AUTO_DOWNRANK,
     CONFIG_BOOL_MMAP_ENABLED,
     CONFIG_BOOL_PLAYER_COMMANDS,
+    CONFIG_BOOL_AUTOLOAD_ACTIVE,
     CONFIG_BOOL_PATH_FIND_OPTIMIZE,
     CONFIG_BOOL_PATH_FIND_NORMALIZE_Z,
     CONFIG_BOOL_ACCOUNT_DATA,

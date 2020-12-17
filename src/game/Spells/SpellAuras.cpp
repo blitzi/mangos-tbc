@@ -673,7 +673,8 @@ void AreaAura::Update(uint32 diff)
                             // do not stack the same aura from the same caster
                             // allows stack party-wide auras from totems/pets matching stacking rules
                             // TODO: Find a better condition (Blizzlike Moonkin aura tricky case)
-                            if (aur == this || aur->GetCaster() == caster || caster->GetTypeId() == TYPEID_PLAYER || !actualSpellInfo->SpellFamilyName)
+                            if (aur == this || aur->GetCaster() == caster || caster->GetTypeId() == TYPEID_PLAYER || !actualSpellInfo->SpellFamilyName ||
+                                !IsStackableSpell(actualSpellInfo, i->second->GetSpellProto(), target))
                                 apply = false;
                             break;
                         default:
@@ -1025,7 +1026,7 @@ void Aura::PickTargetsForSpellTrigger(Unit*& triggerCaster, Unit*& triggerTarget
 
 void Aura::CastTriggeredSpell(PeriodicTriggerData& data)
 {
-    Spell* spell = new Spell(data.caster, data.spellInfo, TRIGGERED_OLD_TRIGGERED, GetCasterGuid(), GetSpellProto());
+    Spell* spell = new Spell(data.caster, data.spellInfo, TRIGGERED_OLD_TRIGGERED, data.caster->GetObjectGuid(), GetSpellProto());
     SpellCastTargets targets;
     if (data.spellInfo->Targets & TARGET_FLAG_DEST_LOCATION)
     {
@@ -1564,24 +1565,6 @@ void Aura::TriggerSpell()
 
                         break;
                     }
-                    case 37429:                             // Spout (left)
-                    case 37430:                             // Spout (right)
-                    {
-                        float newAngle = target->GetOrientation();
-
-                        if (auraId == 37429)
-                            newAngle += 2 * M_PI_F / 72;
-                        else
-                            newAngle -= 2 * M_PI_F / 72;
-
-                        newAngle = MapManager::NormalizeOrientation(newAngle);
-
-                        target->SetFacingTo(newAngle);
-                        target->SetOrientation(newAngle);
-
-                        target->CastSpell(target, 37433, TRIGGERED_OLD_TRIGGERED);
-                        return;
-                    }
 //                    // Karazhan - Chess NPC AI, Snapshot timer
 //                    case 37440: break;
 //                    // Karazhan - Chess NPC AI, action timer
@@ -1980,7 +1963,7 @@ void Aura::TriggerSpell()
             }
             case 32930:                                     // Blue beam
                 return; // Never seems to go off in sniffs - hides errors
-            case 30502:                                     // Dark Spin
+            /*case 30502:                                   // Dark Spin - Only Effect0 s.30505 should be affect, else s.30508 doesnt work anymore
             {
                 if (GetCaster()->GetTypeId() != TYPEID_UNIT)
                     return;
@@ -1990,7 +1973,7 @@ void Aura::TriggerSpell()
                     return;
 
                 break;
-            }
+            }*/
             case 36716:                                     // Energy Discharge
             case 38828:
             {
@@ -2016,6 +1999,11 @@ void Aura::TriggerSpell()
             case 38025:
             {
                 casterGUID = target->GetObjectGuid();
+                break;
+            }
+            case 38652:                                     // Spore Cloud
+            {
+                triggerCaster = GetCaster();
                 break;
             }
             // dummy trigger 18350 family
@@ -2273,13 +2261,13 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                     case 23183:                             // Mark of Frost
                     {
                         if (target->HasAura(23182))
-                            target->CastSpell(target, 23186, TRIGGERED_OLD_TRIGGERED, nullptr, nullptr, GetCaster()->GetObjectGuid());
+                            target->CastSpell(target, 23186, TRIGGERED_OLD_TRIGGERED, nullptr, nullptr, GetCasterGuid());
                         return;
                     }
                     case 25042:                             // Mark of Nature
                     {
                         if (target->HasAura(25040))
-                            target->CastSpell(target, 25043, TRIGGERED_OLD_TRIGGERED, nullptr, nullptr, GetCaster()->GetObjectGuid());
+                            target->CastSpell(target, 25043, TRIGGERED_OLD_TRIGGERED, nullptr, nullptr, GetCasterGuid());
                         return;
                     }
                     case 25471:                             // Attack Order
@@ -2290,7 +2278,7 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                     case 37127:                             // Mark of Death
                     {
                         if (target->HasAura(37128))
-                            target->CastSpell(target, 37131, TRIGGERED_OLD_TRIGGERED, nullptr, nullptr, GetCaster()->GetObjectGuid());
+                            target->CastSpell(target, 37131, TRIGGERED_OLD_TRIGGERED, nullptr, nullptr, GetCasterGuid());
                         return;
                     }
                     case 26681:                             // Cologne
@@ -2800,6 +2788,11 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                     pCaster->RemoveAurasDueToSpell(34477);
                 return;
             }
+            case 36301:                                     // On Fire
+            {
+                target->GetMotionMaster()->MoveTargetedHome(false);
+                return;
+            }
             case 36730:                                     // Flame Strike
             {
                 target->CastSpell(target, 36731, TRIGGERED_OLD_TRIGGERED, nullptr, this);
@@ -3046,62 +3039,6 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                     }
                     else
                         target->RemoveAurasDueToSpell(37284);
-                }
-                case 37676:                             // Insidious Whisper
-                {
-                    if (target->GetTypeId() != TYPEID_PLAYER)
-                        return;
-
-                    if (apply)
-                    {
-                        target->CastSpell(target, 37735, TRIGGERED_OLD_TRIGGERED); // Summon Inner Demon
-
-                        InstanceData* data = target->GetInstanceData();
-                        if (data)
-                        {
-                            m_modifier.m_amount = target->GetInstanceData()->GetData(6);
-                            target->GetInstanceData()->SetData(6, m_modifier.m_amount + 1);
-                            m_modifier.m_amount += 1018;
-                        }
-                        else
-                            m_modifier.m_amount = 1018;
-                    }
-
-                    ReputationRank faction_rank = ReputationRank(1); // value taken from sniff
-
-                    Player* player = (Player*)target;
-
-                    player->GetReputationMgr().ApplyForceReaction(m_modifier.m_amount, faction_rank, apply);
-                    player->GetReputationMgr().SendForceReactions();
-
-                    // stop fighting if at apply forced rank friendly or at remove real rank friendly
-                    if ((apply && faction_rank >= REP_FRIENDLY) || (!apply && player->GetReputationRank(m_modifier.m_amount) >= REP_FRIENDLY))
-                        player->StopAttackFaction(m_modifier.m_amount);
-
-                    if (!apply)
-                    {
-                        if (m_removeMode == AURA_REMOVE_BY_EXPIRE) // MC player if inner demon was not killed
-                        {
-                            if (Unit* pCaster = GetCaster())
-                            {
-                                pCaster->CastSpell(target, 37749, TRIGGERED_OLD_TRIGGERED); // Consuming Madness
-                                pCaster->getThreatManager().modifyThreatPercent(target, -100);
-                            }
-                        }
-                    }
-                    return;
-                }
-                case 37922:                                 // Clear Insidious Whisper
-                {
-                    // no clue why its a dummy aura
-                    if (apply)
-                    {
-                        if (target->HasAura(37716) && target->GetTypeId() == TYPEID_UNIT)
-                            static_cast<Creature*>(target)->ForcedDespawn();
-                        else
-                            target->RemoveAurasDueToSpell(37676);
-                    }
-                    return;
                 }
                 case 40133:                                 // Summon Fire Elemental
                 {
@@ -3494,6 +3431,12 @@ void Aura::HandleAuraModShapeshift(bool apply, bool Real)
                 SpellEntry const* aurSpellInfo = (*iter)->GetSpellProto();
 
                 uint32 aurMechMask = GetAllSpellMechanicMask(aurSpellInfo);
+
+                if ((*iter)->IsPositive() || aurSpellInfo->HasAttribute(SPELL_ATTR_AURA_IS_DEBUFF))
+                {
+                    ++iter;
+                    continue;
+                }
 
                 // If spell that caused this aura has Croud Control or Daze effect
                 if ((aurMechMask & MECHANIC_NOT_REMOVED_BY_SHAPESHIFT) ||
@@ -4066,7 +4009,7 @@ void Aura::HandleAuraTrackStealthed(bool apply, bool /*Real*/)
     GetTarget()->ApplyModByteFlag(PLAYER_FIELD_BYTES, 0, PLAYER_FIELD_BYTE_TRACK_STEALTHED, apply);
 }
 
-void Aura::HandleAuraModScale(bool apply, bool /*Real*/)
+void Aura::HandleAuraModScale(bool /*apply*/, bool /*Real*/)
 {
     int32 value = GetTarget()->GetTotalAuraModifier(SPELL_AURA_MOD_SCALE);
     int32 otherValue = GetTarget()->GetTotalAuraModifier(SPELL_AURA_MOD_SCALE_2);
@@ -4229,14 +4172,10 @@ void Aura::HandleModCharm(bool apply, bool Real)
             case 30019: // Control Piece
                 caster->RemoveAurasDueToSpell(30019);
                 break;
-            case 34630: // Scrap Reaver X6000
-                if (target->GetTypeId() == TYPEID_UNIT && target->AI())
-                    target->AI()->SendAIEvent(AI_EVENT_CUSTOM_A, target, (Creature*)target);
-                break;
-           /* case 33684:
+            case 33684:
                 if (caster->GetTypeId() == TYPEID_UNIT)
                     static_cast<Creature*>(caster)->ForcedDespawn();
-                break;*/
+                break;
         }
     }
 }
@@ -4914,20 +4853,6 @@ void Aura::HandleAuraModDecreaseSpeed(bool apply, bool Real)
         return;
 
     Unit* target = GetTarget();
-
-    if (apply)
-    {
-        // Gronn Lord's Grasp, becomes stoned
-        switch (GetId())
-        {
-            case 33572: // Gronn Lord's Grasp, becomes stoned
-            {
-                if (GetStackAmount() >= 5 && !target->HasAura(33652))
-                    target->CastSpell(target, 33652, TRIGGERED_OLD_TRIGGERED);
-                break;
-            }
-        }
-    }
 
     target->UpdateSpeed(MOVE_RUN, true);
     target->UpdateSpeed(MOVE_RUN_BACK, true);
@@ -6513,9 +6438,8 @@ void Aura::HandleModDamageDone(bool apply, bool Real)
                     target->ApplyModUInt32Value(PLAYER_FIELD_MOD_DAMAGE_DONE_NEG + i, m_modifier.m_amount, apply);
             }
         }
-        Pet* pet = target->GetPet();
-        if (pet)
-            pet->UpdateAttackPowerAndDamage();
+        if (Pet* pet = target->GetPet())
+            pet->UpdateScalingAuras();
     }
 }
 
@@ -8506,7 +8430,10 @@ Unit* SpellAuraHolder::GetCaster() const
     if (m_casterGuid.IsGameObject())
         return nullptr;
 
-    return ObjectAccessor::GetUnit(*m_target, m_casterGuid);// player will search at any maps
+    if (!m_target->IsInWorld())
+        return nullptr;
+
+    return m_target->GetMap()->GetUnit(m_casterGuid);
 }
 
 bool SpellAuraHolder::IsWeaponBuffCoexistableWith(SpellAuraHolder const* ref) const
@@ -8591,9 +8518,6 @@ void SpellAuraHolder::HandleSpellSpecificBoosts(bool apply)
                     break;
                 case 36797: // Mind Control - Kaelthas
                     boostSpells.push_back(36798);
-                    break;
-                case 38511: // Persuasion - Vashj
-                    boostSpells.push_back(38514);
                     break;
                 default:
                     return;
@@ -9093,10 +9017,10 @@ void Aura::OnApply(bool apply)
         script->OnApply(this, apply);
 }
 
-bool Aura::OnCheckProc()
+bool Aura::OnCheckProc(ProcExecutionData& data)
 {
     if (AuraScript* script = GetAuraScript())
-        script->OnCheckProc(this);
+        return script->OnCheckProc(this, data);
     return true;
 }
 

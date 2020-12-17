@@ -89,16 +89,18 @@ void instance_shattered_halls::OnCreatureCreate(Creature* creature)
         case NPC_OFFICER_HORDE:
             m_npcEntryGuidStore[creature->GetEntry()] = creature->GetObjectGuid();
             break;
-        case NPC_ZEALOT:
+        case NPC_SHATTERED_HAND_ZEALOT:
         case NPC_SCOUT:
             if (creature->IsTemporarySummon())
                 m_vGauntletTemporaryGuids.push_back(creature->GetObjectGuid());
             else
                 m_vGauntletPermanentGuids.push_back(creature->GetObjectGuid());
             break;
+        case NPC_SHATTERED_HAND_ARCHER:
+            m_npcEntryGuidCollection[creature->GetEntry()].push_back(creature->GetObjectGuid());
+            // [[breakthrough]]
         case NPC_BLOOD_GUARD:
         case NPC_PORUNG:
-        case NPC_ARCHER:
             m_vGauntletBossGuids.push_back(creature->GetObjectGuid());
             break;
         case NPC_GAUNTLET_OF_FIRE:
@@ -109,6 +111,8 @@ void instance_shattered_halls::OnCreatureCreate(Creature* creature)
 
 void instance_shattered_halls::OnCreatureRespawn(Creature* creature)
 {
+    if (creature->GetEntry() == NPC_FLAME_ARROW)
+        creature->SetCanEnterCombat(false);
     if (creature->GetRespawnDelay() == 5)
         creature->SetNoRewards();
 }
@@ -175,6 +179,9 @@ void instance_shattered_halls::SetData(uint32 uiType, uint32 uiData)
             }
             break;
         case TYPE_GAUNTLET:
+            if (m_auiEncounter[uiType] == DONE) // do not allow any exploits
+                return;
+
             switch (uiData)
             {
                 case FAIL: // Called on wipe/players left/Boss Evade
@@ -258,6 +265,8 @@ void instance_shattered_halls::OnCreatureEvade(Creature* creature)
     // If npc evades continue the counting
     if (creature->GetEntry() == NPC_EXECUTIONER)
         SetData(TYPE_EXECUTION, IN_PROGRESS);
+    else if (creature->GetEntry() == NPC_SHATTERED_HAND_ZEALOT)
+        SetData(TYPE_GAUNTLET, FAIL);
 }
 
 bool instance_shattered_halls::CheckConditionCriteriaMeet(Player const* pPlayer, uint32 uiInstanceConditionId, WorldObject const* pConditionSource, uint32 conditionSourceType) const
@@ -293,7 +302,7 @@ void instance_shattered_halls::Update(uint32 uiDiff)
                 {
                     blaze.second = 2000;
                     if (GameObject* blazeGo = instance->GetGameObject(blaze.first))
-                        gauntlet->CastSpell(nullptr, SPELL_FLAMES, TRIGGERED_NONE, nullptr, nullptr, blazeGo->GetObjectGuid());
+                        blazeGo->CastSpell(gauntlet, nullptr, SPELL_FLAMES, TRIGGERED_NONE, nullptr, nullptr, blazeGo->GetObjectGuid());
                 }
                 else
                     blaze.second -= uiDiff;
@@ -396,15 +405,14 @@ InstanceData* GetInstanceData_instance_shattered_halls(Map* pMap)
     return new instance_shattered_halls(pMap);
 }
 
-enum {
+enum
+{
     NPC_SHATTERED_HAND_SCOUT  = 17693,
-    NPC_SHATTERED_HAND_ZEALOT = 17462,
-    NPC_SHATTERED_HAND_ARCHER = 17427,
     NPC_SHATTERED_HAND_BG	  = 17461, // Porung is the heroic entry for this npc
 //	NPC_ARCHER_TARGET		  = 29097, // Might not need? 
     NPC_GUARD_PORUNG		  = 20923, // not needed
 
-    SCOUT_AGRO_YELL		   = -1540051,
+    SCOUT_AGGRO_YELL		   = -1540051,
     PORUNG_FORM_RANKS_YELL = -1540052,
     PORUNG_READY_YELL	   = -1540053,
     PORUNG_AIM_YELL		   = -1540054,
@@ -491,7 +499,7 @@ struct npc_Gauntlet_of_Fire : public ScriptedAI
     bool m_gauntletStopped;
 
     Creature* m_porung;				   // normal or heroic this is him
-    std::list<Creature*> m_lSHArchers; // the two archers
+    GuidList m_lSHArchers; // the two archers
     ScriptedInstance* m_pInstance;	   // to set gauntlet in progress/not
 
     uint8 m_uiNumInitialWaves;			 // counter for initial waves spawning
@@ -521,7 +529,6 @@ struct npc_Gauntlet_of_Fire : public ScriptedAI
     void DoInitialGets()
     {
         m_porung = GetClosestCreatureWithEntry(m_creature, m_creature->GetMap()->IsRegularDifficulty() ? NPC_SHATTERED_HAND_BG : NPC_GUARD_PORUNG, 150.0f);
-        GetCreatureListWithEntryInGrid(m_lSHArchers, m_creature, NPC_SHATTERED_HAND_ARCHER, 150.0f);
     }
 
     void DoSummonInitialWave()
@@ -556,17 +563,23 @@ struct npc_Gauntlet_of_Fire : public ScriptedAI
         // some range of the players (videos from back when seem to show that behavior)
         // but I'm not sure how best to implement that and this works fine for now
 
-        std::list<Creature*>::iterator itr;
-        if (leftOrRight) // left one shoot
-            itr = m_lSHArchers.begin();
-        else // right one shoot
+        GuidVector archers;
+        m_pInstance->GetCreatureGuidVectorFromStorage(NPC_SHATTERED_HAND_ARCHER, archers);
+        Creature* archer = nullptr;
+        if (archers.size() == 1) // only one archer for some reason - maybe cheesing
         {
-            itr = m_lSHArchers.begin();
-            itr++;
+            archer = m_creature->GetMap()->GetCreature(archers[0]);
+        }
+        else if (archers.size() == 2)
+        {
+            if (leftOrRight)
+                archer = m_creature->GetMap()->GetCreature(archers[1]);
+            else
+                archer = m_creature->GetMap()->GetCreature(archers[0]);
         }
 
-        if ((*itr))
-            (*itr)->CastSpell(nullptr, SHOOT_FLAME_ARROW, TRIGGERED_NONE);
+        if (archer)
+            archer->CastSpell(nullptr, SHOOT_FLAME_ARROW, TRIGGERED_NONE);
     }
 
     void JustSummoned(Creature* pSummoned) override
@@ -631,7 +644,13 @@ struct npc_Gauntlet_of_Fire : public ScriptedAI
                 default:
                     pSummoned->GetMotionMaster()->MoveIdle();
                     if (m_pInstance && pSummoned->GetHealth() > 0)
-                        m_pInstance->SetData(TYPE_GAUNTLET, FAIL);
+                    {
+                        pSummoned->SetInCombatWithZone();
+                        if (!pSummoned->IsInCombat())
+                            m_pInstance->SetData(TYPE_GAUNTLET, FAIL);
+                        else
+                            pSummoned->AI()->AttackClosestEnemy();
+                    }
                     break;
             }
         }        
@@ -756,7 +775,12 @@ struct npc_Shattered_Hand_Scout : public ScriptedAI
         m_bRunning = false;
     }
 
-    void Aggro(Unit* /*pWho*/) override {}
+    void Aggro(Unit* pWho) override
+    {
+        // Abuse Prevention for when people revive mid gauntlet and continue onward instead of starting the gauntlet
+        if (!m_bRunning)
+            DoStartRunning();
+    }
 
     void MoveInLineOfSight(Unit* pWho) override
     {
@@ -778,7 +802,7 @@ struct npc_Shattered_Hand_Scout : public ScriptedAI
             creature->SetInCombatWithZone();
             creature->AI()->AttackClosestEnemy();
         }
-        DoScriptText(SCOUT_AGRO_YELL, m_creature);
+        DoScriptText(SCOUT_AGGRO_YELL, m_creature);
     }
 
     void DoZealotsEmoteReady()

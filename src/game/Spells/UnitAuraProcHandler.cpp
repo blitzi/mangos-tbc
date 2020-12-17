@@ -678,7 +678,7 @@ bool Unit::IsTriggeredAtSpellProcEvent(ProcExecutionData& data, SpellAuraHolder*
 
     for (uint8 i = 0; i < MAX_EFFECT_INDEX; ++i)
         if (Aura* aura = holder->m_auras[i])
-            if (!aura->OnCheckProc())
+            if (!aura->OnCheckProc(data))
                 return false;
 
     return roll_chance_f(chance);
@@ -2778,8 +2778,8 @@ SpellAuraProcResult Unit::HandleOverrideClassScriptAuraProc(ProcExecutionData& d
             triggered_spell_id = 28750;                     // Blessing of the Claw
             break;
         case 5497:                                          // Improved Mana Gems (Serpent-Coil Braid)
-            triggered_spell_id = 37445;                     // Mana Surge
-            break;
+            CastSpell(pVictim, 37445, TRIGGERED_NONE); // Mana Surge                   
+            return SPELL_AURA_PROC_OK;
         case 5510:                                          // Flexibility - T4 Holy Priest bonus
             RemoveAurasDueToSpell(37565);
             return SPELL_AURA_PROC_OK;

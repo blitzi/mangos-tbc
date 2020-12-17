@@ -1159,30 +1159,33 @@ void BattleGroundQueue::Update(BattleGroundTypeId bgTypeId, BattleGroundBracketI
 */
 bool BgQueueInviteEvent::Execute(uint64 /*e_time*/, uint32 /*p_time*/)
 {
-    Player* plr = sObjectMgr.GetPlayer(m_playerGuid);
-    // player logged off (we should do nothing, he is correctly removed from queue in another procedure)
-    if (!plr)
-        return true;
-
-    BattleGround* bg = sBattleGroundMgr.GetBattleGround(m_bgInstanceGuid, m_bgTypeId);
-    // if battleground ended and its instance deleted - do nothing
-    if (!bg)
-        return true;
-
-    BattleGroundQueueTypeId bgQueueTypeId = BattleGroundMgr::BgQueueTypeId(bg->GetTypeId(), bg->GetArenaType());
-    uint32 queueSlot = plr->GetBattleGroundQueueIndex(bgQueueTypeId);
-    if (queueSlot < PLAYER_MAX_BATTLEGROUND_QUEUES)         // player is in queue or in battleground
+    sWorld.GetMessager().AddMessage([=](World* world)
     {
-        // check if player is invited to this bg
-        BattleGroundQueue& bgQueue = sBattleGroundMgr.m_battleGroundQueues[bgQueueTypeId];
-        if (bgQueue.IsPlayerInvited(m_playerGuid, m_bgInstanceGuid, m_removeTime))
+        Player* plr = sObjectMgr.GetPlayer(m_playerGuid);
+        // player logged off (we should do nothing, he is correctly removed from queue in another procedure)
+        if (!plr)
+            return;
+
+        BattleGround* bg = sBattleGroundMgr.GetBattleGround(m_bgInstanceGuid, m_bgTypeId);
+        // if battleground ended and its instance deleted - do nothing
+        if (!bg)
+            return;
+
+        BattleGroundQueueTypeId bgQueueTypeId = BattleGroundMgr::BgQueueTypeId(bg->GetTypeId(), bg->GetArenaType());
+        uint32 queueSlot = plr->GetBattleGroundQueueIndex(bgQueueTypeId);
+        if (queueSlot < PLAYER_MAX_BATTLEGROUND_QUEUES)         // player is in queue or in battleground
         {
-            WorldPacket data;
-            // we must send remaining time in queue
-            sBattleGroundMgr.BuildBattleGroundStatusPacket(data, bg, queueSlot, STATUS_WAIT_JOIN, INVITE_ACCEPT_WAIT_TIME - INVITATION_REMIND_TIME, 0, m_arenaType, TEAM_NONE);
-            plr->GetSession()->SendPacket(data);
+            // check if player is invited to this bg
+            BattleGroundQueue& bgQueue = sBattleGroundMgr.m_battleGroundQueues[bgQueueTypeId];
+            if (bgQueue.IsPlayerInvited(m_playerGuid, m_bgInstanceGuid, m_removeTime))
+            {
+                WorldPacket data;
+                // we must send remaining time in queue
+                sBattleGroundMgr.BuildBattleGroundStatusPacket(data, bg, queueSlot, STATUS_WAIT_JOIN, INVITE_ACCEPT_WAIT_TIME - INVITATION_REMIND_TIME, 0, m_arenaType, TEAM_NONE);
+                plr->GetSession()->SendPacket(data);
+            }
         }
-    }
+    });
     return true;                                            // event will be deleted
 }
 
@@ -1203,36 +1206,39 @@ void BgQueueInviteEvent::Abort(uint64 /*e_time*/)
 */
 bool BgQueueRemoveEvent::Execute(uint64 /*e_time*/, uint32 /*p_time*/)
 {
-    Player* plr = sObjectMgr.GetPlayer(m_playerGuid);
-    if (!plr)
-        // player logged off (we should do nothing, he is correctly removed from queue in another procedure)
-        return true;
-
-    BattleGround* bg = sBattleGroundMgr.GetBattleGround(m_bgInstanceGuid, m_bgTypeId);
-    // battleground can be deleted already when we are removing queue info
-    // bg pointer can be nullptr! so use it carefully!
-
-    uint32 queueSlot = plr->GetBattleGroundQueueIndex(m_bgQueueTypeId);
-    if (queueSlot < PLAYER_MAX_BATTLEGROUND_QUEUES)         // player is in queue, or in Battleground
+    sWorld.GetMessager().AddMessage([=](World* world)
     {
-        // check if player is in queue for this BG and if we are removing his invite event
-        BattleGroundQueue& bgQueue = sBattleGroundMgr.m_battleGroundQueues[m_bgQueueTypeId];
-        if (bgQueue.IsPlayerInvited(m_playerGuid, m_bgInstanceGuid, m_removeTime))
+        Player* plr = sObjectMgr.GetPlayer(m_playerGuid);
+        if (!plr)
+            // player logged off (we should do nothing, he is correctly removed from queue in another procedure)
+            return;
+
+        BattleGround* bg = sBattleGroundMgr.GetBattleGround(m_bgInstanceGuid, m_bgTypeId);
+        // battleground can be deleted already when we are removing queue info
+        // bg pointer can be nullptr! so use it carefully!
+
+        uint32 queueSlot = plr->GetBattleGroundQueueIndex(m_bgQueueTypeId);
+        if (queueSlot < PLAYER_MAX_BATTLEGROUND_QUEUES)         // player is in queue, or in Battleground
         {
-            DEBUG_LOG("Battleground: removing player %u from bg queue for instance %u because of not pressing enter battle in time.", plr->GetGUIDLow(), m_bgInstanceGuid);
+            // check if player is in queue for this BG and if we are removing his invite event
+            BattleGroundQueue& bgQueue = sBattleGroundMgr.m_battleGroundQueues[m_bgQueueTypeId];
+            if (bgQueue.IsPlayerInvited(m_playerGuid, m_bgInstanceGuid, m_removeTime))
+            {
+                DEBUG_LOG("Battleground: removing player %u from bg queue for instance %u because of not pressing enter battle in time.", plr->GetGUIDLow(), m_bgInstanceGuid);
 
-            plr->RemoveBattleGroundQueueId(m_bgQueueTypeId);
-            bgQueue.RemovePlayer(m_playerGuid, true);
+                plr->RemoveBattleGroundQueueId(m_bgQueueTypeId);
+                bgQueue.RemovePlayer(m_playerGuid, true);
 
-            // update queues if battleground isn't ended
-            if (bg && bg->IsBattleGround() && bg->GetStatus() != STATUS_WAIT_LEAVE)
-                sBattleGroundMgr.ScheduleQueueUpdate(0, ARENA_TYPE_NONE, m_bgQueueTypeId, m_bgTypeId, bg->GetBracketId());
+                // update queues if battleground isn't ended
+                if (bg && bg->IsBattleGround() && bg->GetStatus() != STATUS_WAIT_LEAVE)
+                    sBattleGroundMgr.ScheduleQueueUpdate(0, ARENA_TYPE_NONE, m_bgQueueTypeId, m_bgTypeId, bg->GetBracketId());
 
-            WorldPacket data;
-            sBattleGroundMgr.BuildBattleGroundStatusPacket(data, bg, queueSlot, STATUS_NONE, 0, 0, ARENA_TYPE_NONE, TEAM_NONE);
-            plr->GetSession()->SendPacket(data);
+                WorldPacket data;
+                sBattleGroundMgr.BuildBattleGroundStatusPacket(data, bg, queueSlot, STATUS_NONE, 0, 0, ARENA_TYPE_NONE, TEAM_NONE);
+                plr->GetSession()->SendPacket(data);
+            }
         }
-    }
+    });
 
     // event will be deleted
     return true;
@@ -1433,7 +1439,7 @@ void BattleGroundMgr::BuildPvpLogDataPacket(WorldPacket& data, BattleGround* bg)
     else
     {
         data << uint8(1);                                  // bg ended
-        data << uint8(bg->GetWinner() == ALLIANCE ? 1 : 0);// who win
+        data << uint8(bg->GetWinner());                    // who won
     }
 
     data << (int32)(bg->GetPlayerScoresSize());
@@ -1458,10 +1464,7 @@ void BattleGroundMgr::BuildPvpLogDataPacket(WorldPacket& data, BattleGround* bg)
                 if (Player* player = sObjectMgr.GetPlayer(itr->first))
                     team = player->GetTeam();
 
-            if (bg->GetWinner() == team && team != TEAM_NONE)
-                data << uint8(1);
-            else
-                data << uint8(0);
+            data << uint8(team == ALLIANCE ? 1 : 0); // green or yellow
         }
         data << (int32)score->damageDone;            // damage done
         data << (int32)score->healingDone;           // healing done
@@ -1935,7 +1938,33 @@ void BattleGroundMgr::InitAutomaticArenaPointDistribution()
     if (sWorld.getConfig(CONFIG_BOOL_ARENA_AUTO_DISTRIBUTE_POINTS))
     {
         QueryResult* result = CharacterDatabase.Query("SELECT NextArenaPointDistributionTime FROM saved_variables");
+        bool save = false;
+        bool insert = false;
         if (!result) // if not set generate time for next wednesday
+            insert = true;
+        else
+        {
+            m_nextAutoDistributionTime = time_t((*result)[0].GetUInt64());
+            if (m_nextAutoDistributionTime == 0) // uninitialized
+                save = true;
+            else // if time already exists - check for config changes
+            {
+                tm distribTime = *localtime(&m_nextAutoDistributionTime);
+                if (distribTime.tm_hour != sWorld.getConfig(CONFIG_UINT32_QUEST_DAILY_RESET_HOUR))
+                {
+                    if (time(nullptr) >= m_nextAutoDistributionTime) // if it already expired, do not save and only adjust hour
+                    {
+                        distribTime.tm_hour = sWorld.getConfig(CONFIG_UINT32_QUEST_DAILY_RESET_HOUR);
+                        m_nextAutoDistributionTime = mktime(&distribTime);
+                    }
+                    else
+                        save = true;
+                }
+            }
+            delete result;
+        }
+
+        if (save || insert)
         {
             // generate time by config on first server launch
             time_t curTime = time(nullptr);
@@ -1947,12 +1976,10 @@ void BattleGroundMgr::InitAutomaticArenaPointDistribution()
             localTm.tm_isdst = -1;
             m_nextAutoDistributionTime = mktime(&localTm);
 
-            CharacterDatabase.PExecute("INSERT INTO saved_variables (NextArenaPointDistributionTime) VALUES ('" UI64FMTD "')", uint64(m_nextAutoDistributionTime));
-        }
-        else
-        {
-            m_nextAutoDistributionTime = time_t((*result)[0].GetUInt64());
-            delete result;
+            if (insert)
+                CharacterDatabase.PExecute("INSERT INTO saved_variables (NextArenaPointDistributionTime) VALUES ('" UI64FMTD "')", uint64(m_nextAutoDistributionTime));
+            if (save)
+                CharacterDatabase.PExecute("UPDATE saved_variables SET NextArenaPointDistributionTime = '" UI64FMTD "'", uint64(m_nextAutoDistributionTime));
         }
 
         //uint32 dayofweek = sWorld.getConfig(CONFIG_UINT32_ARENA_AUTO_DISTRIBUTE_INTERVAL_DAYS);
@@ -2152,6 +2179,8 @@ void BattleGroundMgr::RewardArenaSeason(uint32 seasonId)
         player->SetTitle(titleEntries[3], true);
         player->SetTitle(titleEntries[4], true);
         player->SaveTitles();
+        player->ModifyHonorPoints(player->GetArenaPoints() * 4);
+        player->SetArenaPoints(0);
     });
 
     // Remove Gladiator, Duelist and Rival from every offline player
@@ -2163,6 +2192,8 @@ void BattleGroundMgr::RewardArenaSeason(uint32 seasonId)
     CharacterDatabase.PExecute("UPDATE characters a SET knownTitles ="
         "CONCAT(SUBSTRING_INDEX(knownTitles, ' ', 1), ' ', CAST(TRIM(SUBSTR(knownTitles, LOCATE(' ', knownTitles)))  AS UNSIGNED) &~0x00000001)"
         "WHERE(CAST(TRIM(SUBSTR(knownTitles, LOCATE(' ', knownTitles)))  AS UNSIGNED) & 0x00000001) != 0");
+
+    CharacterDatabase.PExecute("UPDATE characters SET totalHonorPoints=4*arenaPoints,arenaPoints=0");
 
     for (auto& data : playerRanks)
     {

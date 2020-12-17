@@ -390,7 +390,6 @@ enum
     NPC_BROODLORD               = 12017,
     NPC_TALON_KING_IKISS        = 18473,
     NPC_KARGATH_BLADEFIST       = 16808,
-    NPC_MOROGRIM_TIDEWALKER     = 21213,
 
     // Black Temple
     NPC_HIGH_WARLORD_NAJENTUS   = 22887,
@@ -438,10 +437,6 @@ bool ScriptedAI::EnterEvadeIfOutOfCombatArea(const uint32 diff)
             if (x < 270.0f && x > 185.0f)
                 return false;
             break;
-        case NPC_MOROGRIM_TIDEWALKER:                       // Morogrim - Natural Box made by room
-            if (x > 304.12f && x < 457.35f)
-                return false;
-            break;
         case NPC_HIGH_WARLORD_NAJENTUS:
             if (x > 300.f)
                 return false;
@@ -477,14 +472,6 @@ bool ScriptedAI::EnterEvadeIfOutOfCombatArea(const uint32 diff)
 
     EnterEvadeMode();
     return true;
-}
-
-void ScriptedAI::DespawnGuids(GuidVector& spawns)
-{
-    for (ObjectGuid& guid : spawns)
-        if (Creature* spawn = m_creature->GetMap()->GetAnyTypeCreature(guid))
-            spawn->ForcedDespawn();
-    spawns.clear();
 }
 
 void Scripted_NoMovementAI::GetAIInformation(ChatHandler& reader)

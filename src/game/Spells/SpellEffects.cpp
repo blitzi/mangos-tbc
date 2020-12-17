@@ -54,6 +54,8 @@
 #include "Loot/LootMgr.h"
 #include "Movement/MoveSpline.h"
 #include "AI/ScriptDevAI/include/sc_grid_searchers.h"
+#include "Maps/InstanceData.h"
+#include "Entities/Transports.h"
 
 pEffect SpellEffects[MAX_SPELL_EFFECTS] =
 {
@@ -170,7 +172,7 @@ pEffect SpellEffects[MAX_SPELL_EFFECTS] =
     &Spell::EffectDestroyAllTotems,                         //110 SPELL_EFFECT_DESTROY_ALL_TOTEMS
     &Spell::EffectDurabilityDamage,                         //111 SPELL_EFFECT_DURABILITY_DAMAGE
     &Spell::EffectUnused,                                   //112 SPELL_EFFECT_112 (old SPELL_EFFECT_SUMMON_DEMON)
-    &Spell::EffectResurrectNew,                             //113 SPELL_EFFECT_RESURRECT_NEW
+    &Spell::EffectResurrect,                                //113 SPELL_EFFECT_RESURRECT_NEW
     &Spell::EffectTaunt,                                    //114 SPELL_EFFECT_ATTACK_ME
     &Spell::EffectDurabilityDamagePCT,                      //115 SPELL_EFFECT_DURABILITY_DAMAGE_PCT
     &Spell::EffectSkinPlayerCorpse,                         //116 SPELL_EFFECT_SKIN_PLAYER_CORPSE       one spell: Remove Insignia, bg usage, required special corpse flags...
@@ -226,28 +228,6 @@ void Spell::EffectNULL(SpellEffectIndex /*eff_idx*/)
 void Spell::EffectUnused(SpellEffectIndex /*eff_idx*/)
 {
     // NOT USED BY ANY SPELL OR USELESS OR IMPLEMENTED IN DIFFERENT WAY IN MANGOS
-}
-
-void Spell::EffectResurrectNew(SpellEffectIndex eff_idx)
-{
-    if (!unitTarget || unitTarget->IsAlive())
-        return;
-
-    if (unitTarget->GetTypeId() != TYPEID_PLAYER)
-        return;
-
-    if (!unitTarget->IsInWorld())
-        return;
-
-    Player* pTarget = ((Player*)unitTarget);
-
-    if (pTarget->isRessurectRequested())      // already have one active request
-        return;
-
-    uint32 health = damage;
-    uint32 mana = m_spellInfo->EffectMiscValue[eff_idx];
-    pTarget->setResurrectRequestData(m_caster->GetObjectGuid(), m_caster->GetMapId(), m_caster->GetPositionX(), m_caster->GetPositionY(), m_caster->GetPositionZ(), health, mana);
-    SendResurrectRequest(pTarget);
 }
 
 void Spell::EffectInstaKill(SpellEffectIndex /*eff_idx*/)
@@ -696,7 +676,7 @@ void Spell::EffectDummy(SpellEffectIndex eff_idx)
                     if (!unitTarget || !unitTarget->HasAura(9032))
                         return;
 
-                    unitTarget->CastSpell(unitTarget, 9010, TRIGGERED_OLD_TRIGGERED);
+                    unitTarget->CastSpell(unitTarget, 9010, TRIGGERED_NONE);
                     return;
                 }
                 case 9204:                                  // Hate to Zero
@@ -1991,12 +1971,12 @@ void Spell::EffectDummy(SpellEffectIndex eff_idx)
                 }
                 case 35598:                                 // Wrath of Socrethar (pretend to kill Ishanah)
                 {
-                    unitTarget->CastSpell(unitTarget, 29266, TRIGGERED_NONE); // Permanent Feign Death
+                    unitTarget->CastSpell(unitTarget, 29266, TRIGGERED_IGNORE_CURRENT_CASTED_SPELL); // Permanent Feign Death
                     return;
                 }
                 case 35600:                                 // Wrath of Socrethar (Kill Kaylaan)
                 {
-                    unitTarget->CastSpell(unitTarget, 29266, TRIGGERED_NONE); // Permanent Feign Death
+                    unitTarget->CastSpell(unitTarget, 29266, TRIGGERED_IGNORE_CURRENT_CASTED_SPELL); // Permanent Feign Death
                     return;
                 }
                 case 35683:                                 // Placing Protectorate Disruptor
@@ -2062,7 +2042,7 @@ void Spell::EffectDummy(SpellEffectIndex eff_idx)
                         return;
 
                     int32 basepoints0 = 100;
-                    m_caster->CastCustomSpell(unitTarget, 37675, &basepoints0, nullptr, nullptr, (TRIGGERED_OLD_TRIGGERED | TRIGGERED_IGNORE_HIT_CALCULATION));
+                    m_caster->CastCustomSpell(unitTarget, 37675, &basepoints0, nullptr, nullptr, TRIGGERED_OLD_TRIGGERED);
                     return;
                 }
                 case 37867:                                 // Arcano-Scorp Control
@@ -2218,6 +2198,14 @@ void Spell::EffectDummy(SpellEffectIndex eff_idx)
                     m_caster->CastSpell(unitTarget, spellId, TRIGGERED_OLD_TRIGGERED);
 
                     ((Creature*)unitTarget)->ForcedDespawn();
+                    return;
+                }
+                case 39255:                                 // Black Dragon Form
+                {
+                    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_UNIT)
+                        return;
+
+                    ((Creature*)m_caster)->UpdateEntry(22496);
                     return;
                 }
                 case 39371:                                 // Prayer Beads
@@ -2443,7 +2431,7 @@ void Spell::EffectDummy(SpellEffectIndex eff_idx)
                 }
                 case 42489:                                 // Cast Ooze Zap When Energized
                 {
-                    if (!unitTarget || !m_caster->HasAura(42490) || (unitTarget->GetEntry() != 4393 && unitTarget->GetEntry() != 4394))
+                    if (!unitTarget || !m_caster->HasAura(42490))
                         return;
 
                     m_caster->CastSpell(unitTarget, 42483, TRIGGERED_NONE);
@@ -2498,7 +2486,7 @@ void Spell::EffectDummy(SpellEffectIndex eff_idx)
                             targets.push_back(ihit->targetGUID);
 
                     ObjectGuid guid = targets[urand(0, targets.size() - 1)];
-                    if (Unit * target = m_caster->GetMap()->GetUnit(guid))
+                    if (Unit* target = m_caster->GetMap()->GetUnit(guid))
                         m_caster->CastSpell(target, 43153, TRIGGERED_NONE);
                     return;
                 }
@@ -2882,7 +2870,7 @@ void Spell::EffectDummy(SpellEffectIndex eff_idx)
                 {
                     // Blink
                     if (unitTarget)
-                        m_caster->CastSpell(unitTarget, 38643, TRIGGERED_OLD_TRIGGERED);
+                        unitTarget->CastSpell(m_caster, 38643, TRIGGERED_OLD_TRIGGERED);
                     return;
                 }
                 case 41060:                                 // Return
@@ -2929,11 +2917,6 @@ void Spell::EffectDummy(SpellEffectIndex eff_idx)
                         return;
 
                     unitTarget->CastSpell(m_caster, 30270, TRIGGERED_OLD_TRIGGERED);
-                    return;
-                }
-                case 35754:                                 // Charge
-                {
-                    unitTarget->CastSpell(unitTarget, 35769, TRIGGERED_NONE); // Cast Felfire upon itself on hit
                     return;
                 }
                 case 37144:                                 // Move (Chess event player knight move)
@@ -3624,7 +3607,11 @@ void Spell::EffectTeleportUnits(SpellEffectIndex eff_idx)   // TODO - Use target
     
     // Teleport
     if (m_targets.m_mapId == UINT32_MAX || m_targets.m_mapId == unitTarget->GetMapId())
+    {
+        if (unitTarget->IsPlayer() && unitTarget->IsMoving())
+            position.z += 0.5f;
         unitTarget->NearTeleportTo(position.x, position.y, position.z, orientation, unitTarget == m_caster);
+    }
     else if (unitTarget->GetTypeId() == TYPEID_PLAYER)
         ((Player*)unitTarget)->TeleportTo(m_targets.m_mapId, position.x, position.y, position.z, orientation, unitTarget == m_caster ? TELE_TO_SPELL : 0);
 
@@ -4519,20 +4506,7 @@ void Spell::EffectApplyAreaAura(SpellEffectIndex eff_idx)
 
 void Spell::EffectSummonType(SpellEffectIndex eff_idx)
 {
-    switch (m_spellInfo->Id)
-    {
-        case 44322: // Hacky fix for summon spell in Vexallus fight (MGT)
-        case 46154: // need more info on how to handle this
-        case 46159:
-            break;
-        default:
-        {
-            // if this spell already have an aura applied cancel the summon
-            if (m_caster->HasAura(m_spellInfo->Id))
-                return;
-            break;
-        }
-    }
+    // TODO add script for 35679 and 34877
 
     uint32 prop_id = m_spellInfo->EffectMiscValueB[eff_idx];
     SummonPropertiesEntry const* summon_prop = sSummonPropertiesStore.LookupEntry(prop_id);
@@ -4982,7 +4956,10 @@ void Spell::EffectDispel(SpellEffectIndex eff_idx)
             dispelList.push_back(std::pair<SpellAuraHolder*, uint32>(holder, holder->GetStackAmount()));
         }
     }
-    ProcessDispelList(dispelList);
+    std::list<std::pair<SpellAuraHolder*, uint32> > successList;
+    std::list <uint32> failList;
+    ProcessDispelList(dispelList, successList, failList);
+    EvaluateResultLists(successList, failList);
 }
 
 void Spell::EffectDispelMechanic(SpellEffectIndex eff_idx)
@@ -5002,17 +4979,17 @@ void Spell::EffectDispelMechanic(SpellEffectIndex eff_idx)
         if (iter->second->HasMechanic(mechanic))
             dispelList.push_back(std::pair<SpellAuraHolder*, uint32>(iter->second, iter->second->GetStackAmount()));
     }
-    ProcessDispelList(dispelList);
+    std::list<std::pair<SpellAuraHolder*, uint32> > successList;
+    std::list <uint32> failList;
+    ProcessDispelList(dispelList, successList, failList);
+    EvaluateResultLists(successList, failList);
 }
 
-void Spell::ProcessDispelList(std::list <std::pair<SpellAuraHolder*, uint32> >& dispelList)
+void Spell::ProcessDispelList(std::list <std::pair<SpellAuraHolder*, uint32> >& dispelList, std::list<std::pair<SpellAuraHolder*, uint32> >& successList, std::list <uint32>& failList)
 {
     // Ok if exist some buffs for dispel try dispel it
     if (!dispelList.empty())
     {
-        std::list<std::pair<SpellAuraHolder*, uint32> > success_list;  // (spell_id,casterGuid)
-        std::list < uint32 > fail_list;                     // spell_id
-
         // some spells have effect value = 0 and all from its by meaning expect 1
         if (!damage)
             damage = 1;
@@ -5045,11 +5022,11 @@ void Spell::ProcessDispelList(std::list <std::pair<SpellAuraHolder*, uint32> >& 
             }
             // Try dispel
             if (roll_chance_i(miss_chance))
-                fail_list.push_back(spellInfo->Id);
+                failList.push_back(spellInfo->Id);
             else
             {
                 bool foundDispelled = false;
-                for (std::list<std::pair<SpellAuraHolder*, uint32> >::iterator success_iter = success_list.begin(); success_iter != success_list.end(); ++success_iter)
+                for (std::list<std::pair<SpellAuraHolder*, uint32> >::iterator success_iter = successList.begin(); success_iter != successList.end(); ++success_iter)
                 {
                     if (success_iter->first->GetId() == holder->GetId() && success_iter->first->GetCasterGuid() == holder->GetCasterGuid())
                     {
@@ -5059,61 +5036,65 @@ void Spell::ProcessDispelList(std::list <std::pair<SpellAuraHolder*, uint32> >& 
                     }
                 }
                 if (!foundDispelled)
-                    success_list.push_back(std::pair<SpellAuraHolder*, uint32>(holder, 1));
+                    successList.push_back(std::pair<SpellAuraHolder*, uint32>(holder, 1));
             }
         }
-        // Send success log and really remove auras
-        if (!success_list.empty())
-        {
-            int32 count = success_list.size();
-            WorldPacket data(SMSG_SPELLDISPELLOG, 8 + 8 + 4 + 1 + 4 + count * 5);
-            data << unitTarget->GetPackGUID();              // Victim GUID
-            data << m_caster->GetPackGUID();                // Caster GUID
-            data << uint32(m_spellInfo->Id);                // Dispel spell id
-            data << uint8(0);                               // not used
-            data << uint32(count);                          // count
-            for (std::list<std::pair<SpellAuraHolder*, uint32> >::iterator j = success_list.begin(); j != success_list.end(); ++j)
-            {
-                SpellAuraHolder* dispelledHolder = j->first;
-                data << uint32(dispelledHolder->GetId());   // Spell Id
-                data << uint8(0);                           // 0 - dispelled !=0 cleansed
-                unitTarget->RemoveAuraHolderDueToSpellByDispel(dispelledHolder->GetId(), m_spellInfo->Id, j->second, dispelledHolder->GetCasterGuid(), m_caster);
-            }
-            m_caster->SendMessageToSet(data, true);
+    }
+}
 
-            // On success dispel
-            // Devour Magic
-            if (m_spellInfo->SpellFamilyName == SPELLFAMILY_WARLOCK && m_spellInfo->Category == SPELLCATEGORY_DEVOUR_MAGIC)
-            {
-                uint32 heal_spell = 0;
-                switch (m_spellInfo->Id)
-                {
-                    case 19505: heal_spell = 19658; break;
-                    case 19731: heal_spell = 19732; break;
-                    case 19734: heal_spell = 19733; break;
-                    case 19736: heal_spell = 19735; break;
-                    case 27276: heal_spell = 27278; break;
-                    case 27277: heal_spell = 27279; break;
-                    default:
-                        DEBUG_LOG("Spell for Devour Magic %d not handled in Spell::EffectDispel", m_spellInfo->Id);
-                        break;
-                }
-                if (heal_spell)
-                    m_caster->CastSpell(m_caster, heal_spell, TRIGGERED_OLD_TRIGGERED);
-            }
-        }
-        // Send fail log to client
-        if (!fail_list.empty())
+void Spell::EvaluateResultLists(std::list<std::pair<SpellAuraHolder*, uint32> >& successList, std::list <uint32>& failList)
+{
+    // Send success log and really remove auras
+    if (!successList.empty())
+    {
+        int32 count = successList.size();
+        WorldPacket data(SMSG_SPELLDISPELLOG, 8 + 8 + 4 + 1 + 4 + count * 5);
+        data << unitTarget->GetPackGUID();              // Victim GUID
+        data << m_caster->GetPackGUID();                // Caster GUID
+        data << uint32(m_spellInfo->Id);                // Dispel spell id
+        data << uint8(0);                               // not used
+        data << uint32(count);                          // count
+        for (std::list<std::pair<SpellAuraHolder*, uint32> >::iterator j = successList.begin(); j != successList.end(); ++j)
         {
-            // Failed to dispel
-            WorldPacket data(SMSG_DISPEL_FAILED, 8 + 8 + 4 + 4 * fail_list.size());
-            data << m_caster->GetObjectGuid();              // Caster GUID
-            data << unitTarget->GetObjectGuid();            // Victim GUID
-            data << uint32(m_spellInfo->Id);                // Dispel spell id
-            for (std::list< uint32 >::iterator j = fail_list.begin(); j != fail_list.end(); ++j)
-                data << uint32(*j);                         // Spell Id
-            m_caster->SendMessageToSet(data, true);
+            SpellAuraHolder* dispelledHolder = j->first;
+            data << uint32(dispelledHolder->GetId());   // Spell Id
+            data << uint8(0);                           // 0 - dispelled !=0 cleansed
+            unitTarget->RemoveAuraHolderDueToSpellByDispel(dispelledHolder->GetId(), m_spellInfo->Id, j->second, dispelledHolder->GetCasterGuid(), m_caster);
         }
+        m_caster->SendMessageToSet(data, true);
+
+        // On success dispel
+        // Devour Magic
+        if (m_spellInfo->SpellFamilyName == SPELLFAMILY_WARLOCK && m_spellInfo->Category == SPELLCATEGORY_DEVOUR_MAGIC)
+        {
+            uint32 heal_spell = 0;
+            switch (m_spellInfo->Id)
+            {
+                case 19505: heal_spell = 19658; break;
+                case 19731: heal_spell = 19732; break;
+                case 19734: heal_spell = 19733; break;
+                case 19736: heal_spell = 19735; break;
+                case 27276: heal_spell = 27278; break;
+                case 27277: heal_spell = 27279; break;
+                default:
+                    DEBUG_LOG("Spell for Devour Magic %d not handled in Spell::EffectDispel", m_spellInfo->Id);
+                    break;
+            }
+            if (heal_spell)
+                m_caster->CastSpell(m_caster, heal_spell, TRIGGERED_OLD_TRIGGERED);
+        }
+    }
+    // Send fail log to client
+    if (!failList.empty())
+    {
+        // Failed to dispel
+        WorldPacket data(SMSG_DISPEL_FAILED, 8 + 8 + 4 + 4 * failList.size());
+        data << m_caster->GetObjectGuid();              // Caster GUID
+        data << unitTarget->GetObjectGuid();            // Victim GUID
+        data << uint32(m_spellInfo->Id);                // Dispel spell id
+        for (std::list< uint32 >::iterator j = failList.begin(); j != failList.end(); ++j)
+            data << uint32(*j);                         // Spell Id
+        m_caster->SendMessageToSet(data, true);
     }
 }
 
@@ -5842,6 +5823,9 @@ void Spell::EffectSummonPet(SpellEffectIndex eff_idx)
             m_caster->AI()->JustSummoned(NewSummon);
     }
 
+    if (GenericTransport* transport = m_caster->GetTransport())
+        transport->AddPetToTransport(m_caster, NewSummon);
+
     m_spellLog.AddLog(uint32(SPELL_EFFECT_SUMMON_PET), NewSummon->GetPackGUID());
 }
 
@@ -5889,9 +5873,9 @@ void Spell::EffectTaunt(SpellEffectIndex eff_idx)
     }
 
     // Also use this effect to set the taunter's threat to the taunted creature's highest value
-    if (unitTarget->CanHaveThreatList() && unitTarget->getThreatManager().getCurrentVictim())
+    if (unitTarget->CanHaveThreatList())
     {
-        float addedThreat = unitTarget->getThreatManager().getCurrentVictim()->getThreat() - unitTarget->getThreatManager().getThreat(m_caster);
+        float addedThreat = unitTarget->getThreatManager().GetHighestThreat() - unitTarget->getThreatManager().getThreat(m_caster);
         unitTarget->getThreatManager().addThreatDirectly(m_caster, addedThreat);
         unitTarget->getThreatManager().setCurrentVictimByTarget(m_caster); // force changes the target to caster of taunt
     }
@@ -7059,17 +7043,6 @@ void Spell::EffectScriptEffect(SpellEffectIndex eff_idx)
                     unitTarget->RemoveAurasDueToSpell(35596); // remove aura Power of the Legion
                     return;
                 }
-                case 35865:                                 // Summon Nether Vapor
-                {
-                    if (!unitTarget)
-                        return;
-
-                    m_caster->CastSpell(nullptr, 35861, TRIGGERED_NONE);
-                    m_caster->CastSpell(nullptr, 35862, TRIGGERED_NONE);
-                    m_caster->CastSpell(nullptr, 35863, TRIGGERED_NONE);
-                    m_caster->CastSpell(nullptr, 35864, TRIGGERED_NONE);
-                    return;
-                }
                 case 35869:                                 // Nether Beam
                 {
                     if (m_caster->GetTypeId() != TYPEID_UNIT)
@@ -7159,15 +7132,7 @@ void Spell::EffectScriptEffect(SpellEffectIndex eff_idx)
                         return;
 
                     unitTarget->RemoveAurasDueToSpell(36904);
-                    unitTarget->CastSpell(unitTarget, 37013, TRIGGERED_NONE);
-                    return;
-                }
-                case 37431:                                 // Spout
-                {
-                    if (!unitTarget)
-                        return;
-
-                    unitTarget->CastSpell(nullptr, urand(0, 1) ? 37429 : 37430, TRIGGERED_OLD_TRIGGERED);
+                    unitTarget->CastSpell(nullptr, 37013, TRIGGERED_NONE);
                     return;
                 }
                 case 37641:                                 // Whirlwind
@@ -7217,22 +7182,6 @@ void Spell::EffectScriptEffect(SpellEffectIndex eff_idx)
                     for (uint32 i = 0; i < 10; ++i)
                         m_caster->CastSpell(nullptr, 38054, TRIGGERED_OLD_TRIGGERED);
 
-                    return;
-                }
-                case 38358:                                 // Tidal Surge
-                {
-                    if (!unitTarget)
-                        return;
-
-                    unitTarget->CastSpell(unitTarget, 38353, TRIGGERED_OLD_TRIGGERED, nullptr, nullptr, m_caster->GetObjectGuid());
-                    return;
-                }
-                case 38573:                                 // Spore Drop Effect
-                {
-                    if (!unitTarget)
-                        return;
-
-                    unitTarget->CastSpell(unitTarget, 38574, TRIGGERED_OLD_TRIGGERED);
                     return;
                 }
                 case 38650:                                 // Rancid Mushroom Primer
@@ -7344,7 +7293,7 @@ void Spell::EffectScriptEffect(SpellEffectIndex eff_idx)
                 }
                 case 39835:                                 // Needle Spine - Najentus
                 {
-                    unitTarget->CastSpell(nullptr, 39968, TRIGGERED_NONE);
+                    unitTarget->CastSpell(nullptr, 39968, TRIGGERED_IGNORE_CURRENT_CASTED_SPELL);
                     return;
                 }
                 case 40022:                                 // Four Dragons: Aggro Check
@@ -8037,11 +7986,18 @@ void Spell::EffectSanctuary(SpellEffectIndex /*eff_idx*/)
         return;
 
     unitTarget->InterruptSpellsCastedOnMe(true);
-    unitTarget->CombatStop(false, false);
+    InstanceData* instance = unitTarget->GetInstanceData();
+    if (instance && sWorld.getConfig(CONFIG_BOOL_INSTANCE_STRICT_COMBAT_LOCKDOWN) && instance->IsEncounterInProgress())
+    {
+        unitTarget->AttackStop(true, false, true);
+        unitTarget->getHostileRefManager().addThreatPercent(-100);
+    }
+    else
+        unitTarget->CombatStop(false, false);
 
     // Vanish allows to remove all threat and cast regular stealth so other spells can be used
     if (m_spellInfo->IsFitToFamily(SPELLFAMILY_ROGUE, uint64(0x0000000000000800)))
-        ((Player*)m_caster)->RemoveSpellsCausingAura(SPELL_AURA_MOD_ROOT);
+        ((Player*)unitTarget)->RemoveSpellsCausingAura(SPELL_AURA_MOD_ROOT);
 }
 
 void Spell::EffectAddComboPoints(SpellEffectIndex /*eff_idx*/)
@@ -8253,7 +8209,8 @@ void Spell::EffectActivateObject(SpellEffectIndex eff_idx)
                     break;
                 case 36546:         // no delay meant to happen - activate trap immediately
                 case 38054:
-                    gameObjTarget->Use(m_caster);
+                case 39844:
+                    gameObjTarget->Use(m_caster, m_spellInfo);
                     break;
                 default:
                 {
@@ -8697,12 +8654,9 @@ void Spell::EffectSummonObject(SpellEffectIndex eff_idx)
         m_spellLog.AddLog(m_spellInfo->Effect[eff_idx], linkedGO->GetPackGUID());
 }
 
-void Spell::EffectResurrect(SpellEffectIndex /*eff_idx*/)
+void Spell::EffectResurrect(SpellEffectIndex eff_idx)
 {
-    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_PLAYER)
-        return;
-
-    if (unitTarget->IsAlive() || !unitTarget->IsInWorld())
+    if (!unitTarget && !corpseTarget)
         return;
 
     switch (m_spellInfo->Id)
@@ -8726,20 +8680,73 @@ void Spell::EffectResurrect(SpellEffectIndex /*eff_idx*/)
             }
             break;
         }
-        default:
-            break;
+        default: break;
     }
 
-    Player* pTarget = ((Player*)unitTarget);
+    uint32 effectId = m_spellInfo->Effect[eff_idx];
+    Player* player = nullptr;
 
-    if (pTarget->isRessurectRequested())      // already have one active request
-        return;
+    if (unitTarget) // thread safe version
+    {
+        if (unitTarget->IsAlive() || unitTarget->GetTypeId() != TYPEID_PLAYER || !unitTarget->IsInWorld())
+            return;
 
-    uint32 health = pTarget->GetMaxHealth() * damage / 100;
-    uint32 mana   = pTarget->GetMaxPower(POWER_MANA) * damage / 100;
+        player = static_cast<Player*>(unitTarget);
+    }
 
-    pTarget->setResurrectRequestData(m_caster->GetObjectGuid(), m_caster->GetMapId(), m_caster->GetPositionX(), m_caster->GetPositionY(), m_caster->GetPositionZ(), health, mana);
-    SendResurrectRequest(pTarget);
+    auto const computator = [](Player* player, uint32& health, uint32& mana, uint32 effectId, int32 damage, int32 miscValue)
+    {
+        if (effectId == SPELL_EFFECT_RESURRECT_NEW)
+        {
+            health = damage;
+            mana = miscValue;
+        }
+        else
+        {
+            health = player->GetMaxHealth() * damage / 100;
+            mana = player->GetMaxPower(POWER_MANA) * damage / 100;
+        }
+    };
+
+    if (corpseTarget)
+    {
+        if (!corpseTarget->IsInWorld())
+            return;
+
+        player = m_caster->GetMap()->GetPlayer(corpseTarget->GetOwnerGuid());
+        if (!player) // thread unsafe version - corpse and player in different maps
+        {
+            std::string sentName = m_caster->GetTypeId() == TYPEID_PLAYER ? "" : m_caster->GetName();
+            sWorld.GetMessager().AddMessage([playerGuid = corpseTarget->GetOwnerGuid(), position = m_caster->GetPosition(), casterGuid = m_caster->GetObjectGuid(),
+                effectId, damage = damage, spellInfo = m_spellInfo, eff_idx = eff_idx, mapId = m_caster->GetMapId(), isSpiritHealer = m_caster->isSpiritHealer(), sentName, computator](World* world)
+            {
+                if (Player* player = ObjectAccessor::FindPlayer(playerGuid))
+                {
+                    if (player->isRessurectRequested()) // already have one active request
+                        return;
+                    uint32 health;
+                    uint32 mana;
+                    computator(player, health, mana, spellInfo->Effect[eff_idx], damage, spellInfo->EffectMiscValue[eff_idx]);
+                    char const* name = sentName.data();
+                    if (!casterGuid.IsPlayer())
+                        sObjectMgr.GetCreatureLocaleStrings(casterGuid.GetEntry(), player->GetSession()->GetSessionDbLocaleIndex(), &name);
+                    player->AddResurrectRequest(casterGuid, spellInfo, position, mapId, health, mana, isSpiritHealer, name);
+                }
+            });
+        }
+    }
+
+    if (player)
+    {
+        if (player->isRessurectRequested()) // already have one active request
+            return;
+
+        uint32 health, mana;
+        computator(player, health, mana, m_spellInfo->Effect[eff_idx], damage, m_spellInfo->EffectMiscValue[eff_idx]);
+
+        player->AddResurrectRequest(m_caster->GetObjectGuid(), m_spellInfo, m_caster->GetPosition(), m_caster->GetMapId(), health, mana, m_caster->isSpiritHealer(),
+            m_caster->GetTypeId() == TYPEID_PLAYER ? "" : m_caster->GetNameForLocaleIdx(player->GetSession()->GetSessionDbLocaleIndex()));
+    }
 }
 
 void Spell::EffectAddExtraAttacks(SpellEffectIndex /*eff_idx*/)
@@ -9398,10 +9405,17 @@ void Spell::EffectSpiritHeal(SpellEffectIndex /*eff_idx*/)
 void Spell::EffectSkinPlayerCorpse(SpellEffectIndex /*eff_idx*/)
 {
     DEBUG_LOG("Effect: SkinPlayerCorpse");
-    if ((m_caster->GetTypeId() != TYPEID_PLAYER) || (unitTarget->GetTypeId() != TYPEID_PLAYER) || (unitTarget->IsAlive()))
+    if (m_caster->GetTypeId() != TYPEID_PLAYER)
         return;
 
-    ((Player*)unitTarget)->RemovedInsignia((Player*)m_caster);
+    if (!unitTarget && !corpseTarget)
+        return;
+
+    if (unitTarget)
+        static_cast<Player*>(unitTarget)->RemovedInsignia(static_cast<Player*>(m_caster));
+    if (corpseTarget) // thread safe because all must be in same battleground map
+        if (Player* player = m_caster->GetMap()->GetPlayer(corpseTarget->GetOwnerGuid()))
+            player->RemovedInsignia(static_cast<Player*>(m_caster));
 }
 
 void Spell::EffectStealBeneficialBuff(SpellEffectIndex eff_idx)
@@ -9411,8 +9425,7 @@ void Spell::EffectStealBeneficialBuff(SpellEffectIndex eff_idx)
     if (!unitTarget || unitTarget == m_caster)              // can't steal from self
         return;
 
-    typedef std::vector<SpellAuraHolder*> StealList;
-    StealList steal_list;
+    std::list <std::pair<SpellAuraHolder*, uint32> > dispelList;
     // Create dispel mask by dispel type
     uint32 dispelMask  = GetDispellMask(DispelType(m_spellInfo->EffectMiscValue[eff_idx]));
     Unit::SpellAuraHolderMap const& auras = unitTarget->GetSpellAuraHolderMap();
@@ -9423,56 +9436,43 @@ void Spell::EffectStealBeneficialBuff(SpellEffectIndex eff_idx)
         {
             // Need check for passive? this
             if (holder->IsPositive() && !holder->IsPassive() && !holder->GetSpellProto()->HasAttribute(SPELL_ATTR_EX4_NOT_STEALABLE))
-                steal_list.push_back(holder);
+                dispelList.emplace_back(holder, holder->GetStackAmount());
         }
     }
+    std::list<std::pair<SpellAuraHolder*, uint32> > successList;
+    std::list <uint32> failList;
+    ProcessDispelList(dispelList, successList, failList);
     // Ok if exist some buffs for dispel try dispel it
-    if (!steal_list.empty())
+    // Really try steal and send log
+    if (!successList.empty())
     {
-        typedef std::list < std::pair<uint32, ObjectGuid> > SuccessList;
-        SuccessList success_list;
-        int32 list_size = steal_list.size();
-        // Dispell N = damage buffs (or while exist buffs for dispel)
-        for (int32 count = 0; count < damage && list_size > 0; ++count)
+        int32 count = successList.size();
+        WorldPacket data(SMSG_SPELLSTEALLOG, 8 + 8 + 4 + 1 + 4 + count * 5);
+        data << unitTarget->GetPackGUID();       // Victim GUID
+        data << m_caster->GetPackGUID();         // Caster GUID
+        data << uint32(m_spellInfo->Id);         // Dispell spell id
+        data << uint8(0);                        // not used
+        data << uint32(count);                   // count
+        for (auto& spellstealSpell : successList)
         {
-            // Random select buff for dispel
-            SpellAuraHolder* holder = steal_list[urand(0, list_size - 1)];
-            // Not use chance for steal
-            // TODO possible need do it
-            success_list.push_back(SuccessList::value_type(holder->GetId(), holder->GetCasterGuid()));
-
-            // Remove buff from list for prevent doubles
-            for (StealList::iterator j = steal_list.begin(); j != steal_list.end();)
-            {
-                SpellAuraHolder* stealed = *j;
-                if (stealed->GetId() == holder->GetId() && stealed->GetCasterGuid() == holder->GetCasterGuid())
-                {
-                    j = steal_list.erase(j);
-                    --list_size;
-                }
-                else
-                    ++j;
-            }
+            SpellEntry const* spellInfo = spellstealSpell.first->GetSpellProto();
+            data << uint32(spellInfo->Id);       // Spell Id
+            data << uint8(0);                    // 0 - steals !=0 transfers
+            unitTarget->RemoveAurasDueToSpellBySteal(spellstealSpell.first, m_caster);
         }
-        // Really try steal and send log
-        if (!success_list.empty())
-        {
-            int32 count = success_list.size();
-            WorldPacket data(SMSG_SPELLSTEALLOG, 8 + 8 + 4 + 1 + 4 + count * 5);
-            data << unitTarget->GetPackGUID();       // Victim GUID
-            data << m_caster->GetPackGUID();         // Caster GUID
-            data << uint32(m_spellInfo->Id);         // Dispell spell id
-            data << uint8(0);                        // not used
-            data << uint32(count);                   // count
-            for (auto& j : success_list)
-            {
-                SpellEntry const* spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(j.first);
-                data << uint32(spellInfo->Id);       // Spell Id
-                data << uint8(0);                    // 0 - steals !=0 transfers
-                unitTarget->RemoveAurasDueToSpellBySteal(spellInfo->Id, j.second, m_caster);
-            }
-            m_caster->SendMessageToSet(data, true);
-        }
+        m_caster->SendMessageToSet(data, true);
+    }
+    // Send fail log to client
+    if (!failList.empty())
+    {
+        // Failed to dispel
+        WorldPacket data(SMSG_DISPEL_FAILED, 8 + 8 + 4 + 4 * failList.size());
+        data << m_caster->GetObjectGuid();              // Caster GUID
+        data << unitTarget->GetObjectGuid();            // Victim GUID
+        data << uint32(m_spellInfo->Id);                // Dispel spell id
+        for (std::list< uint32 >::iterator j = failList.begin(); j != failList.end(); ++j)
+            data << uint32(*j);                         // Spell Id
+        m_caster->SendMessageToSet(data, true);
     }
 }
 
