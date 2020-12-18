@@ -433,7 +433,7 @@ void UnitAI::CheckForHelp(Unit* who, Unit* me, float distance)
 void UnitAI::DetectOrAttack(Unit* who)
 {
     float attackRadius = m_unit->GetAttackDistance(who);
-    if (m_unit->GetDistance(who, true, DIST_CALC_SQ) > attackRadius * attackRadius)
+    if (m_unit->GetDistance(who, true, DIST_CALC_NONE) > attackRadius * attackRadius)
         return;
 
     if (!m_unit->IsWithinLOSInMap(who, true))
@@ -468,7 +468,7 @@ bool UnitAI::CanTriggerStealthAlert(Unit* who, float /*attackRadius*/) const
     if (m_unit->hasUnitState(UNIT_STAT_DISTRACTED))
         return false;
 
-    return who->HasStealthAura() && m_unit->GetDistance(who, true, DIST_CALC_SQ) > who->GetVisibilityData().GetStealthVisibilityDistance(m_unit);
+    return who->HasStealthAura() && m_unit->GetDistance(who, true, DIST_CALC_NONE) > who->GetVisibilityData().GetStealthVisibilityDistance(m_unit);
 }
 
 // ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -691,7 +691,7 @@ void UnitAI::AttackClosestEnemy()
     float distance = std::numeric_limits<float>::max();
     AttackSpecificEnemy([&](Unit* enemy, Unit*& closestEnemy)
     {
-        float curDistance = enemy->GetDistance(m_unit, true, DIST_CALC_SQ);
+        float curDistance = enemy->GetDistance(m_unit, true, DIST_CALC_NONE);
         if (!closestEnemy || curDistance < distance)
         {
             closestEnemy = enemy;

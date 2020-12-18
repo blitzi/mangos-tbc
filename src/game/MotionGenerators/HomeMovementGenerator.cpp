@@ -49,7 +49,7 @@ void HomeMovementGenerator<Creature>::_setTargetLocation(Creature& owner)
 
     if (pos.IsEmpty())
         owner.GetRespawnCoord(pos.x, pos.y, pos.z, &pos.o);
-    if (owner.GetDistance(pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ(), DIST_CALC_SQ) > 150.f * 150.f)
+    if (owner.GetDistance(pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ(), DIST_CALC_NONE) > 150.f * 150.f)
     {
         if (!owner.IsInWorld() || !owner.GetMap()->IsDungeon())
         {

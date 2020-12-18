@@ -268,7 +268,7 @@ struct boss_nightbaneAI : public CombatAI
         {
             if (Creature* pTrigger = m_creature->GetMap()->GetCreature(*itr))
             {
-                if (!chosenTrigger || (ground ? !m_creature->GetDistanceOrder(pTrigger, chosenTrigger, false, DIST_CALC_SQ) : m_creature->GetDistanceOrder(pTrigger, chosenTrigger, false, DIST_CALC_SQ)))
+                if (!chosenTrigger || (ground ? !m_creature->GetDistanceOrder(pTrigger, chosenTrigger, false, DIST_CALC_NONE) : m_creature->GetDistanceOrder(pTrigger, chosenTrigger, false, DIST_CALC_NONE)))
                     chosenTrigger = pTrigger;
             }
         }

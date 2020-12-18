@@ -73,7 +73,7 @@ void instance_slave_pens::Update(const uint32 diff)
                 {
                     for (const auto& data : instance->GetPlayers())
                     {
-                        if (data.getSource()->GetDistance(quagmirran, true, DIST_CALC_SQ) < 140.f * 140.f)
+                        if (data.getSource()->GetDistance(quagmirran, true, DIST_CALC_NONE) < 140.f * 140.f)
                         {
                             m_quagmirranTimer = 0;
                             quagmirran->GetMotionMaster()->MoveWaypoint();

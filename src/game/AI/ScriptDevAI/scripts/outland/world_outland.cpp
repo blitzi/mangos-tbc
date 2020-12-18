@@ -564,7 +564,7 @@ struct world_map_outland : public ScriptedMap, public TimerManager
                 creature->SetCorpseDelay(20);
                 creature->GetCombatManager().SetLeashingCheck([](Unit* unit, float /*x*/, float /*y*/, float /*z*/)
                     {
-                        return unit->GetDistance(-707.214f, 7877.495f, 45.191f, DIST_CALC_SQ) > 2500.f; // squared
+                        return unit->GetDistance(-707.214f, 7877.495f, 45.191f, DIST_CALC_NONE) > 2500.f; // squared
                     });
                 if (creature->GetEntry() != NPC_MOGOR)
                     m_lastRingOfBlood = creature->GetObjectGuid();
