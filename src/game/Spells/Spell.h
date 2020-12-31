@@ -415,7 +415,7 @@ class Spell
         SpellCastResult CheckPower(bool strict);
         SpellCastResult CheckCasterAuras() const;
 
-        int32 CalculateSpellEffectValue(SpellEffectIndex i, Unit* target) { return m_caster->CalculateSpellEffectValue(target, m_spellInfo, i, &m_currentBasePoints[i]); }
+        int32 CalculateSpellEffectValue(SpellEffectIndex i, Unit* target, bool maximum = false) { return m_caster->CalculateSpellEffectValue(target, m_spellInfo, i, &m_currentBasePoints[i], maximum); }
         int32 CalculateSpellEffectDamage(Unit* unitTarget, int32 damage);
         static uint32 CalculatePowerCost(SpellEntry const* spellInfo, Unit* caster, Spell* spell = nullptr, Item* castItem = nullptr, bool finalUse = false);
 
@@ -472,6 +472,7 @@ class Spell
         void ExecuteEffects(Unit* unitTarget, Item* itemTarget, GameObject* GOTarget, uint32 effectMask);
         void HandleEffect(Unit* unitTarget, Item* itemTarget, GameObject* GOTarget, SpellEffectIndex effIdx, float damageMultiplier = 1.0);
         void HandleThreatSpells();
+        void ProcessAOECaps();
         // void HandleAddAura(Unit* Target);
 
         SpellEntry const* m_spellInfo;
@@ -633,6 +634,22 @@ class Spell
         typedef std::list<ItemTargetInfo> ItemTargetList;
         typedef std::list<CorpseTargetInfo> CorpseTargetList;
 
+        struct TempTargetData
+        {
+            UnitList tmpUnitList[2];
+            GameObjectList tmpGOList[2];
+            std::list<Item*> tempItemList;
+            CorpseList tempCorpseList;
+        };
+        struct TempTargetingData
+        {
+            TempTargetData data[MAX_EFFECT_INDEX];
+            uint32 chainTargetCount[MAX_EFFECT_INDEX];
+            bool magnet;
+        };
+
+        SpellCastResult CheckScriptTargeting(SpellEffectIndex effIndex, uint32 chainTargets, float radius, uint32 targetMode, UnitList& tempUnitList, GameObjectList& tempGOList);
+
         // Scripting system
         SpellScript* GetSpellScript() const { return m_spellScript; }
         // hooks
@@ -742,19 +759,6 @@ class Spell
         //*****************************************
         // Spell target filling
         //*****************************************
-        struct TempTargetData
-        {
-            UnitList tmpUnitList[2];
-            GameObjectList tmpGOList[2];
-            std::list<Item*> tempItemList;
-            CorpseList tempCorpseList;
-        };
-        struct TempTargetingData
-        {
-            TempTargetData data[MAX_EFFECT_INDEX];
-            uint32 chainTargetCount[MAX_EFFECT_INDEX];
-            bool magnet;
-        };
         void FillTargetMap();
         void SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, bool targetB, TempTargetingData& targetingData);
         bool CheckAndAddMagnetTarget(Unit* unitTarget, SpellEffectIndex effIndex, bool targetB, TempTargetingData& data);

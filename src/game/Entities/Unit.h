@@ -785,10 +785,11 @@ struct ProcSystemArguments
 
     // Healing specific information
     uint32 healthGain;
+    bool isHeal;
 
     explicit ProcSystemArguments(Unit* attacker, Unit* victim, uint32 procFlagsAttacker, uint32 procFlagsVictim, uint32 procExtra, uint32 amount, WeaponAttackType attType = BASE_ATTACK,
-        SpellEntry const* procSpell = nullptr, Spell* spell = nullptr, uint32 healthGain = 0) : attacker(attacker), victim(victim), procFlagsAttacker(procFlagsAttacker), procFlagsVictim(procFlagsVictim), procExtra(procExtra), damage(amount),
-        procSpell(procSpell), attType(attType), spell(spell), healthGain(healthGain)
+        SpellEntry const* procSpell = nullptr, Spell* spell = nullptr, uint32 healthGain = 0, bool isHeal = false) : attacker(attacker), victim(victim), procFlagsAttacker(procFlagsAttacker), procFlagsVictim(procFlagsVictim), procExtra(procExtra), damage(amount),
+        procSpell(procSpell), attType(attType), spell(spell), healthGain(healthGain), isHeal(isHeal)
     {
     }
 };
@@ -812,6 +813,7 @@ struct ProcExecutionData
 
     // Healing specific information
     uint32 healthGain;
+    bool isHeal;
 
     Aura* triggeredByAura;
     uint32 cooldown;
@@ -820,6 +822,7 @@ struct ProcExecutionData
     uint32 triggeredSpellId;
     std::array<int32, MAX_EFFECT_INDEX> basepoints = { 0, 0, 0 };
     bool procOnce;
+    Unit* triggerTarget;
 
     ProcExecutionData(ProcSystemArguments& data, bool isVictim);
 };
@@ -910,6 +913,7 @@ struct CharmInfo
         ~CharmInfo();
 
         void SetCharmState(std::string const& ainame, bool withNewThreatList = true);
+        void SetCharmState(UnitAI* ai, bool withNewThreatList = true);
         void ResetCharmState();
         uint32 GetPetNumber() const { return m_petnumber; }
         void SetPetNumber(uint32 petnumber, bool statwindow);
@@ -922,6 +926,7 @@ struct CharmInfo
         void InitCharmCreateSpells();
         void InitPetActionBar();
         void InitEmptyActionBar();
+        void ProcessUnattackableTargets();
 
         // return true if successful
         bool AddSpellToActionBar(uint32 spellId, ActiveStates newstate = ACT_DECIDE, uint8 forceSlot = 255);
@@ -971,6 +976,8 @@ struct CharmInfo
         void SetWalk(bool walk) { m_walk = walk; }
         bool GetWalk() const { return m_walk; }
 
+        Unit* GetUnit() { return m_unit; }
+
     private:
         Unit*               m_unit;
         UnitAI*             m_ai;
@@ -993,6 +1000,8 @@ struct CharmInfo
 
         Position            m_charmStartPosition;
         bool                m_walk;
+
+        bool                m_deleted;
 };
 
 // used in CallForAllControlledUnits/CheckAllControlledUnits
@@ -1684,21 +1693,22 @@ class Unit : public WorldObject
 
         void SendEnchantmentLog(ObjectGuid targetGuid, uint32 itemEntry, uint32 enchantId) const;
 
-        void CasterHitTargetWithSpell(Unit* realCaster, Unit* target, SpellEntry const* spellInfo, bool success = true);
+        void CasterHitTargetWithSpell(Unit* realCaster, Unit* target, SpellEntry const* spellInfo, bool triggered, bool success = true);
         bool CanInitiateAttack() const;
 
-        void NearTeleportTo(float x, float y, float z, float orientation, bool casting = false);
+        void NearTeleportTo(float x, float y, float z, float orientation, bool casting = false, bool transportLeave = false);
         // do not use - kept only for cinematics
         void MonsterMoveWithSpeed(float x, float y, float z, float speed, bool generatePath = false, bool forceDestination = false);
 
         // recommend use MonsterMove/MonsterMoveWithSpeed for most case that correctly work with movegens
         // if used additional args in ... part then floats must explicitly casted to double
-        void SendTeleportPacket(float x, float y, float z, float ori);
+        void SendTeleportPacket(float x, float y, float z, float ori, GenericTransport* transport);
         void SendHeartBeat();
 
         void SendMoveRoot(bool state, bool broadcastOnly = false);
 
         bool IsMoving() const { return m_movementInfo.HasMovementFlag(movementFlagsMask); }
+        bool IsMovingIgnoreFlying() const { return m_movementInfo.HasMovementFlag(movementFlagsIgnoreFlyingMask); }
         bool IsMovingForward() const { return m_movementInfo.HasMovementFlag(MOVEFLAG_MASK_MOVING_FORWARD); }
         bool IsLevitating() const { return m_movementInfo.HasMovementFlag(MOVEFLAG_LEVITATING); }
         bool IsWalking() const { return m_movementInfo.HasMovementFlag(MOVEFLAG_WALK_MODE); }
@@ -2322,6 +2332,8 @@ class Unit : public WorldObject
 
         uint32 GetDamageDoneByOthers() { return m_damageByOthers; }
         uint32 GetModifierXpBasedOnDamageReceived(uint32 xp);
+        
+        void OverrideMountDisplayId(uint32 newDisplayId);
 
         void UpdateSplinePosition();
     protected:
@@ -2477,6 +2489,7 @@ class Unit : public WorldObject
         ObjectGuid m_critterGuid;                           // pre-WotLK critter compatibility field
 
         GuidSet m_guardianPets;
+        GuidSet::iterator m_guardianPetsIterator;
 
         GuidSet m_charmedUnitsPrivate;                      // stores non-advertised active charmed unit guids (e.g. aoe charms)
 
@@ -2505,6 +2518,9 @@ class Unit : public WorldObject
         int8 m_comboPoints;
 
         uint32 m_damageByOthers;
+
+        bool m_isMountOverriden;
+        uint32 m_overridenMountId;
 
     private:                                                // Error traps for some wrong args using
         // this will catch and prevent build for any cases when all optional args skipped and instead triggered used non boolean type
@@ -2536,8 +2552,8 @@ void Unit::CallForAllControlledUnits(Func const& func, uint32 controlledMask)
 
     if (controlledMask & CONTROLLED_GUARDIANS)
     {
-        for (GuidSet::const_iterator itr = m_guardianPets.begin(); itr != m_guardianPets.end();)
-            if (Pet* guardian = _GetPet(*(itr++)))
+        for (m_guardianPetsIterator = m_guardianPets.begin(); m_guardianPetsIterator != m_guardianPets.end();)
+            if (Pet* guardian = GetMap()->GetPet(*(m_guardianPetsIterator++)))
                 func(guardian);
     }
 
@@ -2575,8 +2591,8 @@ bool Unit::CheckAllControlledUnits(Func const& func, uint32 controlledMask) cons
 
     if (controlledMask & CONTROLLED_GUARDIANS)
     {
-        for (GuidSet::const_iterator itr = m_guardianPets.begin(); itr != m_guardianPets.end();)
-            if (Pet const* guardian = _GetPet(*(itr++)))
+        for (auto m_guardianPet : m_guardianPets)
+            if (Pet* guardian = GetMap()->GetPet(m_guardianPet))
                 if (func(guardian))
                     return true;
     }

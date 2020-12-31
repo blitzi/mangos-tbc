@@ -972,7 +972,10 @@ bool CreatureEventAI::ProcessAction(CreatureEventAI_Action const& action, uint32
             break;
         }
         case ACTION_T_EVADE:
-            EnterEvadeMode();
+            if (action.evade.combatOnly)
+                m_creature->CombatStopWithPets(true);
+            else
+                EnterEvadeMode();
             break;
         case ACTION_T_FLEE_FOR_ASSIST:
             if (!DoFlee())
@@ -1574,6 +1577,9 @@ void CreatureEventAI::EnterCombat(Unit* enemy)
                     i.enabled = true;
                 break;
             // Reset some special combat timers using repeatMin/Max
+            case EVENT_T_FRIENDLY_HP:
+            case EVENT_T_FRIENDLY_IS_CC:
+            case EVENT_T_FRIENDLY_MISSING_BUFF:
             case EVENT_T_SELECT_ATTACKING_TARGET:
                 if (i.UpdateRepeatTimer(m_creature, event.timer.repeatMin, event.timer.repeatMax))
                     i.enabled = true;

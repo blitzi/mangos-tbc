@@ -213,6 +213,7 @@ inline bool IsAuraRemoveOnStacking(SpellEntry const* spellInfo, int32 effIdx) //
         case SPELL_AURA_MOD_INCREASE_ENERGY:
         case SPELL_AURA_MOD_POWER_COST_SCHOOL_PCT:
         case SPELL_AURA_MOD_INCREASE_HEALTH:
+        case SPELL_AURA_MOD_STAT:
             return false;
         default:
             return true;
@@ -491,6 +492,7 @@ inline bool IsSpellRemovedOnEvade(SpellEntry const* spellInfo)
         case 30982:         // Crippling Poison
         case 31332:         // Dire Wolf Visual
         case 31690:         // Putrid Mushroom
+        case 31722:         // Immolation
         case 31792:         // Bear Form (Shapeshift)
         case 32007:         // Mo'arg Engineer Transform Visual
         case 32064:         // Battle Shout
@@ -502,11 +504,15 @@ inline bool IsSpellRemovedOnEvade(SpellEntry const* spellInfo)
         case 33900:         // Shroud of Death
         case 33908:         // Burning Spikes
         case 34343:         // Thorns
+        case 35184:         // Unstable Affliction Proc
+        case 35186:         // Melt Armor Proc
+        case 35188:         // Chilling Touch
         case 35194:         // Shadowform
         case 35281:         // Raging Flames
         case 35319:         // Electric Skin
         case 35408:         // Fear Proc
         case 35596:         // Power of the Legion
+        case 35747:         // Flame Buffet
         case 35841:         // Draenei Spirit Visual
         case 35850:         // Draenei Spirit Visual 2
         case 35917:         // Firey Intellect
@@ -522,6 +528,7 @@ inline bool IsSpellRemovedOnEvade(SpellEntry const* spellInfo)
         case 37497:         // Shadowmoon Ghost Invisibility (Ghostrider of Karabor in SMV) 
         case 37509:         // Ghostly Facade
         case 37816:         // Shadowform
+        case 38732:         // Fire Shield
         case 37863:         // Disease Cloud
         case 38844:         // Unholy Aura
         case 38847:         // Diminish Soul
@@ -532,12 +539,14 @@ inline bool IsSpellRemovedOnEvade(SpellEntry const* spellInfo)
         case 39920:         // Soulgrinder Ritual Visual ( beam)
         case 40453:         // Aura of Fear
         case 40816:         // Saber Lash - Mother Shahraz
+        case 40899:         // Felfire Proc
         case 41634:         // Invisibility and Stealth Detection
         case 42459:         // Dual Wield (Passive)
         case 44537:         // Fel Lightning
         case 44604:         // Enchantment of Spell Haste
         case 44855:         // Out of Phase
         case 45033:         // Abyssal Transformation
+        case 45187:         // Dawnblade Attack
         case 45822:         // Iceblood Warmaster
         case 45823:         // Tower Point Warmaster
         case 45824:         // West Frostwolf Warmaster
@@ -547,6 +556,9 @@ inline bool IsSpellRemovedOnEvade(SpellEntry const* spellInfo)
         case 45830:         // Stonehearth Marshal
         case 45831:         // Icewing Marshal
         case 46048:         // Fel Lightning
+        case 46277:         // Bring Pain
+        case 46308:         // Burning Winds
+        case 47287:         // Burning Destruction
             return false;
         default:
             return true;
@@ -1382,7 +1394,6 @@ inline uint32 GetAffectedTargets(SpellEntry const* spellInfo, WorldObject* caste
                 case 30541:                                 // Blaze (Magtheridon)
                 case 30769:                                 // Pick Red Riding Hood (Karazhan, Big Bad Wolf)
                 case 30835:                                 // Infernal Relay (Karazhan, Prince Malchezaar)
-                case 31347:                                 // Doom (Hyjal Summit, Azgalor)
                 case 32312:                                 // Move 1 (Karazhan, Chess Event)
                 case 33711:                                 // Murmur's Touch (Shadow Labyrinth, Murmur)
                 case 37388:                                 // Move 2 (Karazhan, Chess Event)
@@ -1402,7 +1413,6 @@ inline uint32 GetAffectedTargets(SpellEntry const* spellInfo, WorldObject* caste
                 case 28542:                                 // Life Drain (Naxx, Sapphiron)
                     return 2;
                 case 30004:                                 // Flame Wreath (Karazhan, Shade of Aran)
-                case 31298:                                 // Sleep (Hyjal Summit, Anetheron)
                 case 39341:                                 // Karazhan - Chess, Medivh CHEAT: Fury of Medivh, Target Horde
                 case 39344:                                 // Karazhan - Chess, Medivh CHEAT: Fury of Medivh, Target Alliance
                 case 39992:                                 // Needle Spine Targeting (BT, Warlord Najentus)
@@ -2206,9 +2216,10 @@ enum SpellTargetType
     SPELL_TARGET_TYPE_CREATURE      = 1,
     SPELL_TARGET_TYPE_DEAD          = 2,
     SPELL_TARGET_TYPE_CREATURE_GUID = 3,
+    SPELL_TARGET_TYPE_GAMEOBJECT_GUID = 4, // works only for global fetch spells
 };
 
-#define MAX_SPELL_TARGET_TYPE 4
+#define MAX_SPELL_TARGET_TYPE 5
 
 // pre-defined targeting for spells
 struct SpellTargetEntry
