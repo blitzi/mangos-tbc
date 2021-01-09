@@ -36,7 +36,7 @@ struct SpellEntry;
 class ChatHandler;
 class Spell;
 
-#define HELP_FRIENDLY_UNIT_TIMER 3000
+#define HELP_FRIENDLY_UNIT_TIMER 1500
 #define TIME_INTERVAL_LOOK   5000
 #define VISIBILITY_RANGE    10000
 #define DISTANCING_CONSTANT 1.f
@@ -293,7 +293,7 @@ class UnitAI
          * Note: Use this function to handle Timers, Threat-Management and MeleeAttacking
          * @param uiDiff Passed time since last call
          */
-		virtual void UpdateAI(const uint32 /*diff*/) {};
+		virtual void UpdateAI(const uint32 /*diff*/);
 
         ///== State checks =================================
 

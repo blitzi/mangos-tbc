@@ -6319,14 +6319,7 @@ bool Unit::Attack(Unit* victim, bool meleeAttack)
     if (meleeAttack)
         MeleeAttackStart(m_attacking);
 
-    if (AI())
-    {
-        SendAIReaction(AI_REACTION_HOSTILE);
-        if (GetTypeId() == TYPEID_UNIT)
-            ((Creature*)this)->CallAssistance();
-    }
-
-    return true;
+	return true;
 }
 
 bool Unit::AttackStop(bool targetSwitch /*= false*/, bool includingCast /*= false*/, bool includingCombo /*= false*/, bool clientInitiated /*= false*/)
@@ -8273,6 +8266,8 @@ void Unit::SetInCombatState(bool PvP, Unit* enemy)
 
         TriggerAggroLinkingEvent(enemy);
     }
+
+	ScheduleAINotify(0);
 }
 
 void Unit::EngageInCombatWith(Unit* enemy)
