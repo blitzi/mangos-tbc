@@ -484,9 +484,9 @@ class UnitAI
         /// Pointer to the Creature controlled by this AI
         Unit* m_unit;
 
-		Unit* m_HelpMe;
-		Unit* m_HelpWho;
-		Unit* m_HelpVictim;
+		ObjectGuid m_HelpMe;
+		ObjectGuid m_HelpWho;
+		ObjectGuid m_HelpVictim;
 
         /// How should an enemy be chased
         float m_attackDistance;

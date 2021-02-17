@@ -45,15 +45,12 @@ UnitAI::UnitAI(Unit* unit) :
     m_combatScriptHappening(false),
     m_currentAIOrder(ORDER_NONE),
 	m_currentSpell(nullptr),
-	m_DetectHelpTimer(HELP_FRIENDLY_UNIT_TIMER),
-	m_HelpMe(nullptr),
-	m_HelpWho(nullptr),
-	m_HelpVictim(nullptr)
+	m_DetectHelpTimer(HELP_FRIENDLY_UNIT_TIMER)
 {
 }
 
 UnitAI::~UnitAI()
-{
+{	
 }
 
 void UnitAI::MoveInLineOfSight(Unit* who)
@@ -447,9 +444,9 @@ void UnitAI::CheckForHelp(Unit* who, Unit* me, float distance)
 				{
 					m_DetectHelpTimer = HELP_FRIENDLY_UNIT_TIMER;
 
-					m_HelpMe = me;
-					m_HelpWho = who;
-					m_HelpVictim = victim;
+					m_HelpMe = me->GetObjectGuid();
+					m_HelpWho = who->GetObjectGuid();
+					m_HelpVictim = victim->GetObjectGuid();
 				}
             }
         }
@@ -459,35 +456,35 @@ void UnitAI::CheckForHelp(Unit* who, Unit* me, float distance)
 void UnitAI::ClearHelpVictim()
 {
 	m_DetectHelpTimer = 0;
-	m_HelpMe = nullptr;
-	m_HelpWho = nullptr;
-	m_HelpVictim = nullptr;
+	m_HelpMe.Clear();
+	m_HelpWho.Clear();
+	m_HelpVictim.Clear();
 }
 
 void UnitAI::UpdateAI(uint32 diff)
 {
-	if (m_HelpMe == nullptr ||
-		m_HelpWho == nullptr ||
-		m_HelpVictim == nullptr)
-	{
-		return;
-	}
-
 	if (m_DetectHelpTimer)
 	{
 		if (m_DetectHelpTimer <= diff)
 		{			
-			if (m_HelpMe->CanInitiateAttack() && m_HelpMe->CanAttackOnSight(m_HelpVictim) && m_HelpVictim->isInAccessablePlaceFor(m_HelpMe) && m_HelpVictim->IsVisibleForOrDetect(m_HelpMe, m_HelpMe, false))
-			{
-				if (m_HelpMe->IsWithinDistInMap(m_HelpWho, 10) && m_HelpMe->IsWithinLOSInMap(m_HelpWho, true))
-				{
-					if (m_HelpMe->CanAssistInCombatAgainst(m_HelpWho, m_HelpVictim))
-					{
-						AttackStart(m_HelpVictim);
-						m_unit->TriggerAggroLinkingEvent(m_HelpVictim);
+			Unit* helpMe = m_unit->GetMap()->GetUnit(m_HelpMe);
+			Unit* helpWho = m_unit->GetMap()->GetUnit(m_HelpWho);
+			Unit* helpVictim = m_unit->GetMap()->GetUnit(m_HelpVictim);
 
-						if (m_HelpWho->AI() && m_HelpWho->AI()->GetAIOrder() == ORDER_FLEEING)
-							m_HelpWho->GetMotionMaster()->InterruptPanic();
+			if (helpMe && helpWho && helpVictim)
+			{
+				if (helpMe->CanInitiateAttack() && helpMe->CanAttackOnSight(helpVictim) && helpVictim->isInAccessablePlaceFor(helpMe) && helpVictim->IsVisibleForOrDetect(helpMe, helpMe, false))
+				{
+					if (helpMe->IsWithinDistInMap(helpWho, 10) && helpMe->IsWithinLOSInMap(helpWho, true))
+					{
+						if (helpMe->CanAssistInCombatAgainst(helpWho, helpVictim))
+						{
+							AttackStart(helpVictim);
+							m_unit->TriggerAggroLinkingEvent(helpVictim);
+
+							if (helpWho->AI() && helpWho->AI()->GetAIOrder() == ORDER_FLEEING)
+								helpWho->GetMotionMaster()->InterruptPanic();
+						}
 					}
 				}
 			}
