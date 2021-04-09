@@ -65,15 +65,19 @@
 #include "Weather/Weather.h"
 #include "World/WorldState.h"
 #include "Cinematics/CinematicMgr.h"
-#include "Maps/TransportMgr.h"
 
 #ifdef BUILD_AHBOT
- #include "AuctionHouseBot/AuctionHouseBot.h"
+#include "AuctionHouseBot/AuctionHouseBot.h"
 #endif
 
-#ifdef BUILD_METRICS
- #include "Metric/Metric.h"
+#ifdef ENABLE_PLAYERBOTS
+#include "AhBot.h"
+#include "PlayerbotAIConfig.h"
+#include "RandomPlayerbotMgr.h"
 #endif
+
+#include "Metric/Metric.h"
+#include "Maps/TransportMgr.h"
 
 #include <algorithm>
 #include <mutex>
@@ -706,6 +710,14 @@ void World::LoadConfigSettings(bool reload)
     setConfig(CONFIG_BOOL_OUTDOORPVP_TF_ENABLED,                       "OutdoorPvp.TFEnabled", true);
     setConfig(CONFIG_BOOL_OUTDOORPVP_NA_ENABLED,                       "OutdoorPvp.NAEnabled", true);
 
+    // Collector's Edition rewards
+    setConfig(CONFIG_BOOL_COLLECTORS_EDITION, "Custom.CollectorsEdition", false);
+
+    // Battle for dark portal event
+    setConfig(CONFIG_BOOL_DARK_PORTAL_EVENT, "Custom.DarkPortalEvent", false);
+    setConfig(CONFIG_BOOL_DARK_PORTAL_EVENT_RESET, "Custom.DarkPortalEventReset", false);
+    setConfig(CONFIG_UINT32_DARK_PORTAL_EVENT_TIMER, "Custom.DarkPortalEventTimer", 60);
+
     setConfig(CONFIG_BOOL_OFFHAND_CHECK_AT_TALENTS_RESET, "OffhandCheckAtTalentsReset", false);
 
     setConfig(CONFIG_BOOL_KICK_PLAYER_ON_BAD_PACKET, "Network.KickOnBadPacket", false);
@@ -893,7 +905,7 @@ void World::SetInitialWorldSettings()
 
     sLog.outString("Loading world safe locs ...");
     sObjectMgr.LoadWorldSafeLocs();
-
+    
     ///- Load the DBC files
     sLog.outString("Initialize DBC data stores...");
     LoadDBCStores(m_dataPath);
@@ -1384,14 +1396,14 @@ void World::SetInitialWorldSettings()
     sWorldState.Load();
     sLog.outString();
 
-#ifdef BUILD_METRICS
     // update metrics output every second
     m_timers[WUPDATE_METRICS].SetInterval(1 * IN_MILLISECONDS);
-#endif // BUILD_METRICS
-
 
 #ifdef BUILD_PLAYERBOT
     PlayerbotMgr::SetInitialWorldSettings();
+#endif
+#ifdef ENABLE_PLAYERBOTS
+    sPlayerbotAIConfig.Initialize();
 #endif
     sLog.outString("---------------------------------------");
     sLog.outString("      CMANGOS: World initialized       ");
@@ -1511,6 +1523,19 @@ void World::Update(uint32 diff)
     }
 #endif
 
+#ifdef ENABLE_PLAYERBOTS
+#ifndef BUILD_AHBOT
+    /// <li> Handle AHBot operations
+    if (m_timers[WUPDATE_AHBOT].Passed())
+    {
+        auctionbot.Update();
+        m_timers[WUPDATE_AHBOT].Reset();
+    }
+#endif
+    sRandomPlayerbotMgr.UpdateAI(diff);
+    sRandomPlayerbotMgr.UpdateSessions(diff);
+#endif
+
     /// <li> Handle session updates
     auto preSessionTime = std::chrono::time_point_cast<std::chrono::milliseconds>(Clock::now());
     UpdateSessions(diff);
@@ -1571,13 +1596,12 @@ void World::Update(uint32 diff)
         m_timers[WUPDATE_EVENTS].Reset();
     }
 
-#ifdef BUILD_METRICS
     if (m_timers[WUPDATE_METRICS].Passed())
     {
         m_timers[WUPDATE_METRICS].Reset();
+
         GeneratePacketMetrics();
     }
-#endif
 
     /// </ul>
     ///- Move all creatures with "delayed move" and remove and delete all objects with "delayed remove"
@@ -1591,7 +1615,7 @@ void World::Update(uint32 diff)
 
     // cleanup unused GridMap objects as well as VMaps
     sTerrainMgr.Update(diff);
-#ifdef BUILD_METRICS
+
     auto updateEndTime = std::chrono::time_point_cast<std::chrono::milliseconds>(Clock::now());
     long long total = (updateEndTime - m_currentTime).count();
     long long presession = (preSessionTime - m_currentTime).count();
@@ -1607,7 +1631,6 @@ void World::Update(uint32 diff)
     meas.add_field("map", std::to_string(map));
     meas.add_field("singletons", std::to_string(singletons));
     meas.add_field("cleanup", std::to_string(cleanup));
-#endif
 }
 
 namespace MaNGOS
@@ -1993,6 +2016,11 @@ void World::ShutdownServ(uint32 time, uint32 options, uint8 exitcode)
         m_ShutdownTimer = time;
         ShutdownMsg(true);
     }
+
+#ifdef ENABLE_PLAYERBOTS
+    sRandomPlayerbotMgr.LogoutAllBots();
+#endif
+
 }
 
 /// Display a shutdown message to the user(s)
@@ -2099,6 +2127,7 @@ void World::UpdateResultQueue()
     CharacterDatabase.ProcessResultQueue();
     WorldDatabase.ProcessResultQueue();
     LoginDatabase.ProcessResultQueue();
+    PlayerbotDatabase.ProcessResultQueue();
 }
 
 void World::UpdateRealmCharCount(uint32 accountId)
@@ -2586,7 +2615,6 @@ void World::IncrementOpcodeCounter(uint32 opcodeId)
     ++m_opcodeCounters[opcodeId];
 }
 
-#ifdef BUILD_METRICS
 void World::GeneratePacketMetrics()
 {
     for (uint32 i = 0; i < NUM_MSG_TYPES; ++i)
@@ -2631,4 +2659,3 @@ void World::GeneratePacketMetrics()
     meas_players.add_field("warlock", std::to_string(GetOnlineClassPlayers(CLASS_WARLOCK)));
     meas_players.add_field("druid", std::to_string(GetOnlineClassPlayers(CLASS_DRUID)));
 }
-#endif

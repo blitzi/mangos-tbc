@@ -68,9 +68,11 @@ LogsDir = ""
 LoginDatabaseInfo     = "127.0.0.1;3306;mangos;mangos;tbcrealmd"
 WorldDatabaseInfo     = "127.0.0.1;3306;mangos;mangos;tbcmangos"
 CharacterDatabaseInfo = "127.0.0.1;3306;mangos;mangos;tbccharacters"
+PlayerbotDatabaseInfo = "127.0.0.1;3306;mangos;mangos;tbcplayerbots"
 LoginDatabaseConnections = 1
 WorldDatabaseConnections = 1
 CharacterDatabaseConnections = 1
+PlayerbotDatabaseConnections = 1
 MaxPingTime = 30
 WorldServerPort = 8085
 BindIP = "0.0.0.0"
@@ -1663,6 +1665,36 @@ OutdoorPvp.HPEnabled = 1
 OutdoorPvp.ZMEnabled = 1
 OutdoorPvp.TFEnabled = 1
 OutdoorPvp.NAEnabled = 1
+
+###################################################################################################################
+# CUSTOM SETTINGS CONFIG
+#
+#    Custom.CollectorsEdition
+#        Send TBC Collector's Edition reward by mail on first login (Netherwhelp pet)
+#        Default: 0 (disable)
+#                 1 (enable)
+#
+#    Custom.DarkPortalEvent
+#        Start Dark Portal event at first server start.
+#        Dark Portal disabled until event ends. New races enabled
+#        Default: 1 (enable)
+#                 0 (disable)
+#
+#    Custom.DarkPortalEventTimer
+#        How many minutes event lasts.
+#        Default: 60 (1 hour)
+#
+#    Custom.DarkPortalEventReset
+#        Force start event on next server start
+#        Default: 0 (disable)
+#                 1 (start event on server start)
+#
+###################################################################################################################
+
+Custom.CollectorsEdition = 0
+Custom.DarkPortalEvent = 0
+Custom.DarkPortalEventTimer = 60
+Custom.DarkPortalEventReset = 0
 
 ###################################################################################################################
 # NETWORK CONFIG

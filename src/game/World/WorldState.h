@@ -349,6 +349,7 @@ class WorldState
         // Release events
         uint8 GetExpansion() const { return m_expansion; }
         bool SetExpansion(uint8 expansion);
+        bool IsPortalOpen() { return m_darkPortalOpen; }
 
         // Suns reach reclamation
         void AddSunsReachProgress(uint32 questId);
@@ -410,6 +411,9 @@ class WorldState
 
         // Release Events
         void StartExpansionEvent();
+        void StopExpansionEvent();
+        bool m_darkPortalOpen;
+        uint32 m_darkPortalTimer;
 
         std::atomic<uint8> m_expansion;
 
@@ -418,6 +422,9 @@ class WorldState
         bool m_highlordKruulSpawned;
         uint32 m_highlordKruulTimer;
         uint8 m_highlordKruulChosenPosition;
+
+        // Start Arena Season
+        void StartArenaSeason();
 };
 
 #define sWorldState MaNGOS::Singleton<WorldState>::Instance()

@@ -44,7 +44,7 @@ enum
 };
 
 WorldState::WorldState() : m_emeraldDragonsState(0xF), m_emeraldDragonsTimer(0), m_emeraldDragonsChosenPositions(4, 0), m_isMagtheridonHeadSpawnedHorde(false), m_isMagtheridonHeadSpawnedAlliance(false),
-    m_adalSongOfBattleTimer(0), m_expansion(EXPANSION_TBC), m_highlordKruulSpawned(false), m_highlordKruulTimer(0), m_highlordKruulChosenPosition(0)
+    m_adalSongOfBattleTimer(0), m_expansion(sWorld.getConfig(CONFIG_UINT32_EXPANSION)), m_highlordKruulSpawned(false), m_highlordKruulTimer(0), m_highlordKruulChosenPosition(0)
 {
     m_transportStates[GROMGOL_UNDERCITY]    = GROMGOLUC_EVENT_1;
     m_transportStates[GROMGOL_ORGRIMMAR]    = OGUC_EVENT_1;
@@ -60,7 +60,7 @@ WorldState::~WorldState()
 void WorldState::Load()
 {
     std::unique_ptr<QueryResult> result(CharacterDatabase.Query("SELECT Id, Data FROM world_state"));
-
+    bool expansionInfo = false;
     if (result)
     {
         // always one row
@@ -140,11 +140,12 @@ void WorldState::Load()
                     if (data.size())
                     {
                         loadStream >> m_highlordKruulTimer >> respawnTime;
+                        loadStream >> m_highlordKruulChosenPosition;
                         if (respawnTime)
                         {
                             TimePoint respawnTimePoint = std::chrono::time_point_cast<std::chrono::milliseconds>(Clock::from_time_t(respawnTime));
                             m_highlordKruulTimer = std::chrono::duration_cast<std::chrono::milliseconds>(respawnTimePoint - curTime).count();
-                            m_highlordKruulSpawned = true;
+                            m_highlordKruulSpawned = false;
                         }
                         else m_highlordKruulTimer = 0;
                     }
@@ -160,10 +161,28 @@ void WorldState::Load()
                     {
                         uint32 expansion; // need to read as number not as character
                         loadStream >> expansion;
-                        m_expansion = expansion;
+                        if (!sWorld.getConfig(CONFIG_BOOL_DARK_PORTAL_EVENT_RESET))
+                            m_expansion = expansion;
+                        else
+                            m_expansion = EXPANSION_NONE;
+
+                        if (m_expansion == EXPANSION_NONE)
+                        {
+                            auto curTime = World::GetCurrentClockTime();
+                            uint64 openTime;
+                            loadStream >> m_darkPortalTimer >> openTime;
+                            if (openTime)
+                            {
+                                TimePoint openTimePoint = std::chrono::time_point_cast<std::chrono::milliseconds>(Clock::from_time_t(openTime));
+                                m_darkPortalTimer = std::chrono::duration_cast<std::chrono::milliseconds>(openTimePoint - curTime).count();
+                            }
+                            else m_darkPortalTimer = 0;
+                        }
+                        else
+                            m_darkPortalTimer = 0;
+
+                        expansionInfo = true;
                     }
-                    else
-                        m_expansion = sWorld.getConfig(CONFIG_UINT32_EXPANSION);
                     break;
                 case SAVE_ID_LOVE_IS_IN_THE_AIR:
                     if (data.size())
@@ -186,11 +205,23 @@ void WorldState::Load()
         }
         while (result->NextRow());
     }
+
+    if (!expansionInfo)
+    {
+        if (sWorld.getConfig(CONFIG_BOOL_DARK_PORTAL_EVENT))
+            m_expansion = EXPANSION_NONE;
+        else
+            m_expansion = sWorld.getConfig(CONFIG_UINT32_EXPANSION);
+
+        Save(SAVE_ID_EXPANSION_RELEASE);
+    }
+
     StartWarEffortEvent();
     RespawnEmeraldDragons();
     StartSunsReachPhase(true);
     HandleSunsReachSubPhaseTransition(m_sunsReachData.m_subphaseMask, true);
     StartExpansionEvent();
+    StartArenaSeason();
 }
 
 void WorldState::Save(SaveIds saveId)
@@ -229,6 +260,15 @@ void WorldState::Save(SaveIds saveId)
         case SAVE_ID_EXPANSION_RELEASE:
         {
             std::string expansionData = std::to_string(m_expansion);
+
+            if (m_darkPortalTimer)
+            {
+                uint64 time;
+                auto curTime = World::GetCurrentClockTime();
+                auto respawnTime = std::chrono::milliseconds(m_darkPortalTimer) + curTime;
+                time = uint64(Clock::to_time_t(respawnTime));
+                expansionData += " " + std::to_string(m_darkPortalTimer) + " " + std::to_string(time);
+            }
             SaveHelper(expansionData, SAVE_ID_EXPANSION_RELEASE);
             break;
         }
@@ -244,7 +284,21 @@ void WorldState::Save(SaveIds saveId)
             SaveHelper(loveData, SAVE_ID_LOVE_IS_IN_THE_AIR);
             break;
         }
-        default: break;
+        case SAVE_ID_HIGHLORD_KRUUL:
+        {
+            uint64 time;
+            if (m_highlordKruulTimer)
+            {
+                auto curTime = World::GetCurrentClockTime();
+                auto respawnTime = std::chrono::milliseconds(m_highlordKruulTimer) + curTime;
+                time = uint64(Clock::to_time_t(respawnTime));
+            }
+            else time = 0;
+            std::string kruulData = std::to_string(m_highlordKruulTimer) + " " + std::to_string(time);
+            kruulData += " " + std::to_string(m_highlordKruulChosenPosition);
+            SaveHelper(kruulData, SAVE_ID_HIGHLORD_KRUUL);
+            break;
+        }
     }
 }
 
@@ -645,6 +699,20 @@ void WorldState::HandleExternalEvent(uint32 eventId, uint32 param)
     }
 }
 
+static std::string highlordKruulSpawnNames[10] =
+{
+    { "Undercity" },
+    { "Stormwind" },
+    { "Ironforge" },
+    { "Stranglethorn Vale" },
+    { "Hinterlands" },
+    { "Eastern Plaguelands" },
+    { "Searing Gorge" },
+    { "Orgrimmar" },
+    { "Azshara" },
+    { "Winterpsring" },
+};
+
 void WorldState::Update(const uint32 diff)
 {
     std::lock_guard<std::mutex> guard(m_mutex);
@@ -677,6 +745,70 @@ void WorldState::Update(const uint32 diff)
             HandleWarEffortPhaseTransition(m_aqData.m_phase + 1);
         }
         else m_aqData.m_timer -= diff;
+    }
+
+    if (m_highlordKruulTimer)
+    {
+        if (m_highlordKruulTimer <= diff)
+        {
+            m_highlordKruulTimer = 0;
+            RespawnHighlordKruul();
+        }
+        else
+            m_highlordKruulTimer -= diff;
+    }
+
+    if (m_darkPortalTimer)
+    {
+        bool isOpen = false;
+        if (m_darkPortalTimer <= diff)
+        {
+            m_darkPortalTimer = 0;
+            isOpen = true;
+
+            SetExpansion(EXPANSION_TBC);  // set expansion for all sessions and stop portal event
+        }
+        else
+            m_darkPortalTimer -= diff;
+
+        time_t thisTime = time(nullptr);
+        uint32 elapsed = uint32(thisTime - sWorld.GetGameTime());
+
+        if ((elapsed > 0 && m_darkPortalTimer > 1500) || isOpen)
+        {
+            ///- Display a message every 12 hours, 1 hour, 5 minutes, 1 minute
+            if (isOpen || ((m_darkPortalTimer / 1000) < 15 * MINUTE && ((m_darkPortalTimer / 1000) % MINUTE) == 0) ||       // < 15 min; every 1 min
+                ((m_darkPortalTimer / 1000) < 60 * MINUTE && ((m_darkPortalTimer / 1000) % (5 * MINUTE)) == 0) || // < 60 min; every 5 min
+                ((m_darkPortalTimer / 1000) < 12 * HOUR && ((m_darkPortalTimer / 1000) % HOUR) == 0) ||           // < 12 h; every 1 h
+                ((m_darkPortalTimer / 1000) >= 12 * HOUR && ((m_darkPortalTimer / 1000) % (12 * HOUR * IN_MILLISECONDS)) == 0))     // >= 12 h; every 12 h
+            {
+                std::string str;
+                if (isOpen)
+                    str = "Heroes of Azeroth! Demons fall back! Go forth to the realm of Outland!";
+                else
+                {
+                    if (urand(0, 1))
+                        str = "Heroes of Azeroth! Our world is under attack! Horrific creatures are swarming from Dark Portal! In " + secsToTimeString(m_darkPortalTimer / IN_MILLISECONDS) + " we gather our forces and bring the fight to their world... Outland!";
+                    else
+                        str = "Heroes of Azeroth! Demons invaded Azeroth! Help defend our lands near Dark Portal and in " + secsToTimeString(m_darkPortalTimer / IN_MILLISECONDS) + " we strike back to Outland!";
+                }
+
+                sWorld.SendServerMessage(SERVER_MSG_CUSTOM, str.c_str(), nullptr);
+            }
+        }
+    }
+
+    if (m_highlordKruulSpawned && ((sWorld.GetUptime()) % (10 * MINUTE)) == 0)
+    {
+        time_t thisTime = time(nullptr);
+        uint32 elapsed = uint32(thisTime - sWorld.GetGameTime());
+
+        if (elapsed > 0)
+        {
+            std::string str = "Heroes of Azeroth! The mighty Highlord Kruul is terrorizing " + (std::string)highlordKruulSpawnNames[m_highlordKruulChosenPosition] + ", watch out!";
+
+            sWorld.SendServerMessage(SERVER_MSG_CUSTOM, str.c_str(), nullptr);
+        }
     }
 }
 
@@ -972,6 +1104,7 @@ void WorldState::RespawnHighlordKruul()
     }
 
     uint8 mapId = m_highlordKruulChosenPosition <= 6 ? 0 : 1;
+    sLog.outString("Highlord Kruul spawned at %s!", highlordKruulSpawnNames[m_highlordKruulChosenPosition]);
     sMapMgr.DoForAllMapsWithMapId(mapId, [&](Map* map)
     {
         WorldObject::SummonCreature(TempSpawnSettings(nullptr, NPC_HIGHLORD_KRUUL, highlordKruulSpawns[m_highlordKruulChosenPosition][0], highlordKruulSpawns[m_highlordKruulChosenPosition][1], highlordKruulSpawns[m_highlordKruulChosenPosition][2], highlordKruulSpawns[m_highlordKruulChosenPosition][3], TEMPSPAWN_DEAD_DESPAWN, 0, true, false, m_highlordKruulChosenPosition), map);
@@ -985,12 +1118,13 @@ bool WorldState::SetExpansion(uint8 expansion)
 
     m_expansion = expansion;
     if (expansion == EXPANSION_NONE)
-        sGameEventMgr.StartEvent(GAME_EVENT_BEFORE_THE_STORM);
+        StartExpansionEvent();
     else
-        sGameEventMgr.StopEvent(GAME_EVENT_BEFORE_THE_STORM);
+        StopExpansionEvent();
+
     sWorld.ExecuteForAllSessions([expansion](WorldSession& worldSession)
     {
-        if (worldSession.GetSecurity() < SEC_GAMEMASTER)
+        if (worldSession.GetSecurity() < SEC_GAMEMASTER || expansion == EXPANSION_TBC)
             worldSession.SetExpansion(expansion);
     });
     Save(SAVE_ID_EXPANSION_RELEASE); // save to DB right away
@@ -1360,7 +1494,46 @@ void WorldState::StartExpansionEvent()
     if (m_expansion == EXPANSION_NONE)
     {
         sGameEventMgr.StartEvent(GAME_EVENT_BEFORE_THE_STORM);
+        if (!m_darkPortalTimer)
+            m_darkPortalTimer = sWorld.getConfig(CONFIG_UINT32_DARK_PORTAL_EVENT_TIMER) * MINUTE * IN_MILLISECONDS;
+        Save(SAVE_ID_EXPANSION_RELEASE); // save to DB right away
         RespawnHighlordKruul();
+        m_darkPortalOpen = false;
+    }
+}
+
+void WorldState::StopExpansionEvent()
+{
+    if (m_expansion == EXPANSION_TBC)
+    {
+        sGameEventMgr.StopEvent(GAME_EVENT_BEFORE_THE_STORM);
+        m_darkPortalOpen = true;
+    }
+    StartArenaSeason();
+}
+
+void WorldState::StartArenaSeason()
+{
+    if (m_expansion > EXPANSION_NONE)
+    {
+        uint32 seasonEvent = 0;
+        switch (sWorld.getConfig(CONFIG_UINT32_ARENA_SEASON_ID))
+        {
+        case 1:
+            seasonEvent = 53;
+            break;
+        case 2:
+            seasonEvent = 54;
+            break;
+        case 3:
+            seasonEvent = 55;
+            break;
+        case 4:
+            seasonEvent = 56;
+            break;
+        }
+        if (seasonEvent)
+            sGameEventMgr.StartEvent(seasonEvent);
     }
 }
 
