@@ -48,8 +48,11 @@
 #include "Movement/MoveSpline.h"
 #include "Entities/CreatureLinkingMgr.h"
 #include "Tools/Formulas.h"
-#include "Metric/Metric.h"
 #include "Entities/Transports.h"
+
+#ifdef BUILD_METRICS
+ #include "Metric/Metric.h"
+#endif
 
 #include <math.h>
 #include <limits>
@@ -463,7 +466,7 @@ void Unit::Update(const uint32 diff)
 {
     if (!IsInWorld())
         return;
-
+#ifdef BUILD_METRICS
     metric::duration<std::chrono::microseconds> meas("unit.update", {
         { "entry", std::to_string(GetEntry()) },
         { "guid", std::to_string(GetGUIDLow()) },
@@ -471,6 +474,7 @@ void Unit::Update(const uint32 diff)
         { "map_id", std::to_string(GetMapId()) },
         { "instance_id", std::to_string(GetInstanceId()) }
     }, 1000);
+#endif
 
     /*if(p_time > m_AurasCheck)
     {
@@ -513,6 +517,7 @@ void Unit::Update(const uint32 diff)
 
     if (AI() && IsAlive())
     {
+#ifdef BUILD_METRICS
         metric::duration<std::chrono::microseconds> meas_ai("unit.update.ai", {
             { "entry", std::to_string(GetEntry()) },
             { "guid", std::to_string(GetGUIDLow()) },
@@ -520,6 +525,7 @@ void Unit::Update(const uint32 diff)
             { "map_id", std::to_string(GetMapId()) },
             { "instance_id", std::to_string(GetInstanceId()) }
         }, 1000);
+#endif
 
         AI()->UpdateAI(diff);   // AI not react good at real update delays (while freeze in non-active part of map)
     }
@@ -857,7 +863,7 @@ uint32 Unit::DealDamage(Unit* dealer, Unit* victim, uint32 damage, CleanDamage c
             }
         }
     }
- 
+
     if (!damage)
     {
         // Rage from physical damage received - extend to all units
@@ -1184,7 +1190,7 @@ void Unit::HandleDamageDealt(Unit* dealer, Unit* victim, uint32& damage, CleanDa
         for (auto aura : cleanupHolder)
             victim->RemoveAurasDueToSpell(aura);
     }
-    
+
     if (dealer)
         dealer->InterruptOrDelaySpell(victim, damagetype);
 
@@ -1566,6 +1572,43 @@ SpellCastResult Unit::CastSpell(SpellCastTargets& targets, SpellEntry const* spe
     }
 
     Spell* spell = new Spell(this, spellInfo, triggeredFlags, originalCaster, triggeredBy);
+
+    spell->m_CastItem = castItem;
+    return spell->SpellStart(&targets, triggeredByAura);
+}
+
+SpellCastResult Unit::CastCustomSpell(SpellCastTargets& targets, SpellEntry const* spellInfo, int32 const* bp0, int32 const* bp1, int32 const* bp2, uint32 triggeredFlags, Item* castItem, Aura* triggeredByAura, ObjectGuid originalCaster, SpellEntry const* triggeredBy)
+{
+    if (!spellInfo)
+    {
+        if (triggeredByAura)
+            sLog.outError("CastSpell: unknown spell by caster: %s triggered by aura %u (eff %u)", GetGuidStr().c_str(), triggeredByAura->GetId(), triggeredByAura->GetEffIndex());
+        else
+            sLog.outError("CastSpell: unknown spell by caster: %s", GetGuidStr().c_str());
+        return SPELL_NOT_FOUND;
+    }
+
+    if (castItem)
+        DEBUG_FILTER_LOG(LOG_FILTER_SPELL_CAST, "WORLD: cast Item spellId - %i", spellInfo->Id);
+
+    if (triggeredByAura)
+    {
+        if (!originalCaster)
+            originalCaster = triggeredByAura->GetCasterGuid();
+
+        triggeredBy = triggeredByAura->GetSpellProto();
+    }
+
+    Spell* spell = new Spell(this, spellInfo, triggeredFlags, originalCaster, triggeredBy);
+
+    if (bp0)
+        spell->m_currentBasePoints[EFFECT_INDEX_0] = *bp0;
+
+    if (bp1)
+        spell->m_currentBasePoints[EFFECT_INDEX_1] = *bp1;
+
+    if (bp2)
+        spell->m_currentBasePoints[EFFECT_INDEX_2] = *bp2;
 
     spell->m_CastItem = castItem;
     return spell->SpellStart(&targets, triggeredByAura);
@@ -2775,7 +2818,7 @@ void Unit::SendMeleeAttackStart(Unit* pVictim) const
     data << pVictim->GetObjectGuid();
 
     SendMessageToSet(data, true);
-    DEBUG_LOG("WORLD: Sent SMSG_ATTACKSTART");
+    DETAIL_FILTER_LOG(LOG_FILTER_COMBAT, "WORLD: Sent SMSG_ATTACKSTART");
 }
 
 void Unit::SendMeleeAttackStop(Unit* victim) const
@@ -6136,7 +6179,7 @@ void Unit::SendAttackStateUpdate(CalcDamageInfo* calcDamageInfo) const
     SendMessageToSet(data, true);
 }
 
-void Unit::SendAttackStateUpdate(uint32 HitInfo, Unit* target, SpellSchoolMask damageSchoolMask, uint32 Damage, 
+void Unit::SendAttackStateUpdate(uint32 HitInfo, Unit* target, SpellSchoolMask damageSchoolMask, uint32 Damage,
                                  uint32 AbsorbDamage, int32 Resist, VictimState TargetState, uint32 BlockedAmount)
 {
     CalcDamageInfo dmgInfo;
@@ -6205,7 +6248,7 @@ FactionTemplateEntry const* Unit::GetFactionTemplateEntry() const
             guid = GetObjectGuid();
 
             if (guid.GetHigh() == HIGHGUID_PET)
-                sLog.outError("%s (base creature entry %u) have invalid faction template id %u, owner %s", 
+                sLog.outError("%s (base creature entry %u) have invalid faction template id %u, owner %s",
                     GetGuidStr().c_str(), GetEntry(), getFaction(), ((Pet*)this)->GetOwnerGuid().GetString().c_str());
             else
                 sLog.outError("%s have invalid faction template id %u", GetGuidStr().c_str(), getFaction());
@@ -6261,7 +6304,7 @@ bool Unit::Attack(Unit* victim, bool meleeAttack)
     // nobody can attack GM in GM-mode
     if (victim->GetTypeId() == TYPEID_PLAYER)
     {
-        if (((Player*)victim)->isGameMaster())
+        if (((Player*) victim)->IsGameMaster())
             return false;
     }
     else
@@ -7583,7 +7626,7 @@ bool Unit::IsImmuneToSpell(SpellEntry const* spellInfo, bool /*castOnSelf*/, uin
             return true;
 
     {
-        if (!spellInfo->HasAttribute(SPELL_ATTR_UNAFFECTED_BY_INVULNERABILITY) && 
+        if (!spellInfo->HasAttribute(SPELL_ATTR_UNAFFECTED_BY_INVULNERABILITY) &&
                 !spellInfo->HasAttribute(SPELL_ATTR_EX_DISPEL_AURAS_ON_IMMUNITY))
         {
             bool isPositive = IsPositiveEffectMask(spellInfo, effectMask);
@@ -8246,7 +8289,7 @@ void Unit::SetInCombatState(bool PvP, Unit* enemy)
         }
 
         if (creature->GetCombatStartPosition().IsEmpty())
-            creature->SetCombatStartPosition(GetPosition());
+            creature->SetCombatStartPosition(GetPosition(GetTransport()));
 
         if (!creature->CanAggro()) // if creature aggroed during initial ignoration period, clear the state
         {
@@ -8423,7 +8466,7 @@ bool Unit::IsVisibleForOrDetect(Unit const* u, WorldObject const* viewPoint, boo
     // unit is also invisible for alive.. if an isinvisibleforalive unit dies we
     // should be able to see it too
     if (u->IsAlive() && IsAlive() && isInvisibleForAlive() != u->isInvisibleForAlive())
-        if (u->GetTypeId() != TYPEID_PLAYER || !((Player*)u)->isGameMaster())
+        if (u->GetTypeId() != TYPEID_PLAYER || !((Player*) u)->IsGameMaster())
             return false;
 
     // Visible units, always are visible for all units, except for units under invisibility
@@ -8431,7 +8474,7 @@ bool Unit::IsVisibleForOrDetect(Unit const* u, WorldObject const* viewPoint, boo
         return true;
 
     // GMs see any players, not higher GMs and all units
-    if (u->GetTypeId() == TYPEID_PLAYER && ((Player*)u)->isGameMaster())
+    if (u->GetTypeId() == TYPEID_PLAYER && ((Player*) u)->IsGameMaster())
     {
         if (GetTypeId() == TYPEID_PLAYER)
             return ((Player*)this)->GetSession()->GetSecurity() <= ((Player*)u)->GetSession()->GetSecurity();
@@ -8778,7 +8821,8 @@ void Unit::SetDeathState(DeathState s)
 
         StopMoving();
         i_motionMaster.Clear(false, true);
-        i_motionMaster.MoveIdle();
+        if (!CanFly() || !i_motionMaster.MoveFall())
+            i_motionMaster.MoveIdle();
 
         GetCombatManager().StopEvade();
 
@@ -8978,7 +9022,7 @@ bool Unit::SelectHostileTarget()
         // NOTE: path alrteady generated from AttackStart()
         if (AI()->IsCombatMovement())
         {
-            if (!GetMotionMaster()->GetCurrent()->IsReachable() || !target->isInAccessablePlaceFor(this))
+            if (!GetMotionMaster()->GetCurrent()->IsReachable())
             {
                 if (!GetCombatManager().IsInEvadeMode())
                     GetCombatManager().StartEvadeTimer();
@@ -9880,7 +9924,7 @@ void CharmInfo::InitCharmCreateSpells()
             m_charmspells[x].SetActionAndType(spellId, ACT_DISABLED);
 
             ActiveStates newstate;
-            bool onlyselfcast = true;            
+            bool onlyselfcast = true;
 
             for (uint32 i = 0; i < 3 && onlyselfcast; ++i)  // nonexistent spell will not make any problems as onlyselfcast would be false -> break right away
             {
@@ -10526,10 +10570,7 @@ void Unit::UpdateModelData()
         SetFloatValue(UNIT_FIELD_BOUNDINGRADIUS, GetObjectScale() * modelInfo->bounding_radius);
 
         // never actually update combat_reach for player, it's always the same. Below player case is for initialization
-        if (GetTypeId() == TYPEID_PLAYER)
-            SetFloatValue(UNIT_FIELD_COMBATREACH, 1.5f);
-        else
-            SetFloatValue(UNIT_FIELD_COMBATREACH, GetObjectScale() * modelInfo->combat_reach);
+        SetFloatValue(UNIT_FIELD_COMBATREACH, GetObjectScale() * modelInfo->combat_reach);
 
         SetBaseWalkSpeed(modelInfo->SpeedWalk);
         SetBaseRunSpeed(modelInfo->SpeedRun);
@@ -11051,6 +11092,27 @@ void Unit::RestoreOriginalFaction()
     }
 }
 
+void Unit::KnockBackFrom(Unit* target, float horizontalSpeed, float verticalSpeed)
+{
+    float angle = this == target ? GetOrientation() + M_PI_F : target->GetAngle(this);
+    KnockBackWithAngle(angle, horizontalSpeed, verticalSpeed);
+}
+
+void Unit::KnockBackWithAngle(float angle, float horizontalSpeed, float verticalSpeed)
+{
+    if (IsClientControlled())
+    {
+        if (Player const* player = GetControllingPlayer())
+        {
+            player->GetSession()->SendKnockBack(this, angle, horizontalSpeed, verticalSpeed);
+            return;
+        }
+    }
+
+    // no non player controlled pre-wotlk
+    return;
+}
+
 float Unit::GetCombatRatingReduction(CombatRating cr) const
 {
     if (GetTypeId() == TYPEID_PLAYER)
@@ -11268,7 +11330,7 @@ void Unit::UpdateSplineMovement(uint32 t_diff)
 
     if (movespline->Finalized())
         return;
-
+#ifdef BUILD_METRICS
     metric::duration<std::chrono::microseconds> meas("unit.updatesplinemovement", {
         { "entry", std::to_string(GetEntry()) },
         { "guid", std::to_string(GetGUIDLow()) },
@@ -11276,7 +11338,7 @@ void Unit::UpdateSplineMovement(uint32 t_diff)
         { "map_id", std::to_string(GetMapId()) },
         { "instance_id", std::to_string(GetInstanceId()) }
     }, 1000);
-
+#endif
     movespline->updateState(t_diff);
     bool arrived = movespline->Finalized();
 
@@ -11524,7 +11586,7 @@ bool Unit::TakePossessOf(Unit* possessed)
     if (possessed->IsImmuneToNPC() != immuneNPC)
         possessed->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC);
 
-    charmInfo->SetCharmStartPosition(combatStartPosition.IsEmpty() ? possessed->GetPosition() : combatStartPosition);
+    charmInfo->SetCharmStartPosition(combatStartPosition.IsEmpty() ? possessed->GetPosition(possessed->GetTransport()) : combatStartPosition);
 
     charmInfo->ProcessUnattackableTargets();
 
@@ -11667,7 +11729,7 @@ bool Unit::TakeCharmOf(Unit* charmed, uint32 spellId, bool advertised /*= true*/
     if (charmed->IsImmuneToNPC() != immuneNPC)
         charmed->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC);
 
-    charmInfo->SetCharmStartPosition(combatStartPosition.IsEmpty() ? charmed->GetPosition() : combatStartPosition);
+    charmInfo->SetCharmStartPosition(combatStartPosition.IsEmpty() ? charmed->GetPosition(charmed->GetTransport()) : combatStartPosition);
 
     if (charmerPlayer && advertised)
     {
@@ -11819,7 +11881,7 @@ void Unit::Uncharm(Unit* charmed, uint32 spellId)
 
     // if charm expires mid evade clear evade since movement is also cleared
     // TODO: maybe should be done on HomeMovementGenerator::MovementExpires
-    charmed->GetCombatManager().SetEvadeState(EVADE_NONE); 
+    charmed->GetCombatManager().SetEvadeState(EVADE_NONE);
 
     if (charmed->GetTypeId() == TYPEID_UNIT)
     {
@@ -11927,7 +11989,7 @@ void Unit::Uncharm(Unit* charmed, uint32 spellId)
                 Position const& pos = charmInfo->GetCharmStartPosition();
                 if (!pos.IsEmpty())
                     static_cast<Creature*>(charmed)->SetCombatStartPosition(pos);
-            }                
+            }
         }
     }
     else

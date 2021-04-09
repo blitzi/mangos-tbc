@@ -670,11 +670,13 @@ void AreaAura::Update(uint32 diff)
                                 apply = false;
                             break;
                         case AREA_AURA_PARTY:
-                            // do not stack the same aura from the same caster
-                            // allows stack party-wide auras from totems/pets matching stacking rules
-                            // TODO: Find a better condition (Blizzlike Moonkin aura tricky case)
-                            if (aur == this || aur->GetCaster() == caster || caster->GetTypeId() == TYPEID_PLAYER || !actualSpellInfo->SpellFamilyName ||
-                                !IsStackableSpell(actualSpellInfo, i->second->GetSpellProto(), target))
+                            // non caster self-casted auras (stacked from diff. casters)
+                            if (aur->GetModifier()->m_auraname != SPELL_AURA_NONE && i->second->GetCasterGuid() != GetCasterGuid())
+                            {
+                                apply = IsStackableSpell(actualSpellInfo, i->second->GetSpellProto(), target);
+                                break;
+                            }
+                            if (aur->GetModifier()->m_auraname != SPELL_AURA_NONE || i->second->GetCasterGuid() == GetCasterGuid())
                                 apply = false;
                             break;
                         default:
@@ -830,12 +832,16 @@ void Aura::ApplyModifier(bool apply, bool Real)
 
     if (apply)
         OnApply(apply);
+    if (!apply)
+        OnAfterApply(apply);
     if (aura < TOTAL_AURAS)
         (*this.*AuraHandler [aura])(apply, Real);
+    if (apply)
+        OnAfterApply(apply);
     if (!apply)
         OnApply(apply);
 
-    if (GetSpellProto()->HasAttribute(SPELL_ATTR_EX4_IS_PET_SCALING))
+    if (GetSpellProto()->HasAttribute(SPELL_ATTR_EX4_IS_PET_SCALING) && m_removeMode != AURA_REMOVE_BY_GAINED_STACK)
         GetTarget()->RegisterScalingAura(this, apply);
 }
 
@@ -2124,7 +2130,7 @@ void Aura::TriggerSpell()
     {
         CastTriggeredSpell(data);
     }
-    else
+    else if (!GetAuraScript()) // if scripter scripted spell, it is handled somehow
     {
         if (Unit* caster = GetCaster())
         {
@@ -8783,6 +8789,14 @@ void SpellAuraHolder::SetCreationDelayFlag()
     m_skipUpdate = true;
 }
 
+bool SpellAuraHolder::HasAuraType(AuraType type)
+{
+    for (auto m_aura : m_auras)
+        if (m_aura && m_spellProto->EffectApplyAuraName[m_aura->GetEffIndex()] == type)
+            return true;
+    return false;
+}
+
 void SpellAuraHolder::UpdateAuraApplication()
 {
     if (m_auraSlot >= MAX_AURAS)
@@ -8815,34 +8829,39 @@ void SpellAuraHolder::UpdateAuraDuration()
     if (GetAuraSlot() >= MAX_AURAS || m_isPassive)
         return;
 
-    if (m_target->GetTypeId() == TYPEID_PLAYER)
+    if (m_target->IsPlayer())
     {
         if (!GetSpellProto()->HasAttribute(SPELL_ATTR_EX5_HIDE_DURATION))
         {
             WorldPacket data(SMSG_UPDATE_AURA_DURATION, 5);
             data << uint8(GetAuraSlot());
             data << uint32(GetAuraDuration());
-            ((Player*)m_target)->SendDirectMessage(data);
+            static_cast<Player*>(m_target)->SendDirectMessage(data);
 
-            data = WorldPacket(SMSG_SET_EXTRA_AURA_INFO, (8 + 1 + 4 + 4 + 4));
-            data << m_target->GetPackGUID();
-            data << uint8(GetAuraSlot());
-            data << uint32(GetId());
-            data << uint32(GetAuraMaxDuration());
-            data << uint32(GetAuraDuration());
-
-            ((Player*)m_target)->SendDirectMessage(data);
+            SendAuraDurationForTarget();
         }
     }
 
     // not send in case player loading (will not work anyway until player not added to map), sent in visibility change code
-    if (m_target->GetTypeId() == TYPEID_PLAYER && ((Player*)m_target)->GetSession()->PlayerLoading())
+    if (m_target->GetTypeId() == TYPEID_PLAYER && static_cast<Player*>(m_target)->GetSession()->PlayerLoading())
         return;
 
     Unit* caster = GetCaster();
 
     if (caster && caster->GetTypeId() == TYPEID_PLAYER && caster != m_target)
-        SendAuraDurationForCaster((Player*)caster);
+        SendAuraDurationForCaster(static_cast<Player*>(caster));
+}
+
+void SpellAuraHolder::SendAuraDurationForTarget(uint32 slot)
+{
+    WorldPacket data(SMSG_SET_EXTRA_AURA_INFO, (8 + 1 + 4 + 4 + 4));
+    data << m_target->GetPackGUID();
+    data << uint8(slot == MAX_AURAS ? GetAuraSlot() : slot);
+    data << uint32(GetId());
+    data << uint32(GetAuraMaxDuration());
+    data << uint32(GetAuraDuration());
+
+    static_cast<Player*>(m_target)->SendDirectMessage(data);
 }
 
 void SpellAuraHolder::SendAuraDurationForCaster(Player* caster)
@@ -8943,6 +8962,12 @@ void Aura::OnApply(bool apply)
 {
     if (AuraScript* script = GetAuraScript())
         script->OnApply(this, apply);
+}
+
+void Aura::OnAfterApply(bool apply)
+{
+    if (AuraScript* script = GetAuraScript())
+        script->OnAfterApply(this, apply);
 }
 
 bool Aura::OnCheckProc(ProcExecutionData& data)

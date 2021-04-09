@@ -22,7 +22,6 @@
 #include "Grids/GridNotifiers.h"
 #include "Log.h"
 #include "Grids/ObjectGridLoader.h"
-#include "Metric/Metric.h"
 #include "Grids/CellImpl.h"
 #include "GridDefines.h"
 #include "Grids/GridNotifiersImpl.h"
@@ -40,6 +39,10 @@
 #include "Chat/Chat.h"
 #include "Weather/Weather.h"
 #include "AI/ScriptDevAI/ScriptDevAIMgr.h"
+
+#ifdef BUILD_METRICS
+ #include "Metric/Metric.h"
+#endif
 
 Map::~Map()
 {
@@ -107,7 +110,30 @@ void Map::AddTransport(Transport* transport)
 
 void Map::RemoveTransport(Transport* transport)
 {
-    m_transports.erase(transport);
+    if (m_transportsIterator != m_transports.end())
+    {
+        auto itr = m_transports.find(transport);
+        if (itr == m_transportsIterator)
+            ++m_transportsIterator;
+        m_transports.erase(transport);
+    }
+    else
+        m_transports.erase(transport);
+}
+
+bool Map::CanSpawn(TypeID typeId, uint32 dbGuid)
+{
+    if (typeId == TYPEID_UNIT)
+        return GetCreatureLinkingHolder()->CanSpawn(dbGuid, this, nullptr, 0.f, 0.f);
+    else if (TYPEID_GAMEOBJECT)
+    {
+        GameObjectData const* data = sObjectMgr.GetGOData(dbGuid);
+        if (data)
+            if ((data->spawnMask & (1 << GetDifficulty())) == 0)
+                return false;
+        return true;
+    }
+    return false;
 }
 
 void Map::LoadMapAndVMap(int gx, int gy)
@@ -125,7 +151,7 @@ Map::Map(uint32 id, time_t expiry, uint32 InstanceId, uint8 SpawnMode)
       m_VisibleDistance(DEFAULT_VISIBILITY_DISTANCE), m_persistentState(nullptr),
       m_activeNonPlayersIter(m_activeNonPlayers.end()), m_onEventNotifiedIter(m_onEventNotifiedObjects.end()),
       i_gridExpiry(expiry), m_TerrainData(sTerrainMgr.LoadTerrain(id)),
-      i_data(nullptr), i_script_id(0)
+      i_data(nullptr), i_script_id(0), m_transportsIterator(m_transports.begin())
 {
     m_weatherSystem = new WeatherSystem(this);
 }
@@ -599,6 +625,8 @@ bool Map::loaded(const GridPair& p) const
     return (getNGrid(p.x_coord, p.y_coord) && isGridObjectDataLoaded(p.x_coord, p.y_coord));
 }
 
+#define MAP_METRICS
+
 void Map::VisitNearbyCellsOf(WorldObject* obj, TypeContainerVisitor<MaNGOS::ObjectUpdater, GridTypeMapContainer> &gridVisitor, TypeContainerVisitor<MaNGOS::ObjectUpdater, WorldTypeMapContainer> &worldVisitor)
 {
     // lets update mobs/objects in ALL visible cells around player!
@@ -626,10 +654,14 @@ void Map::VisitNearbyCellsOf(WorldObject* obj, TypeContainerVisitor<MaNGOS::Obje
 
 void Map::Update(const uint32& t_diff)
 {
+
+#ifdef BUILD_METRICS
     metric::duration<std::chrono::milliseconds> meas("map.update", {
         { "map_id", std::to_string(i_id) },
         { "instance_id", std::to_string(i_InstanceId) }
-        });
+});
+#endif
+
 
     uint64 count = 0;
 
@@ -645,18 +677,23 @@ void Map::Update(const uint32& t_diff)
     TypeContainerVisitor<MaNGOS::ObjectUpdater, GridTypeMapContainer  > grid_object_update(obj_updater);    // For creature
     TypeContainerVisitor<MaNGOS::ObjectUpdater, WorldTypeMapContainer > world_object_update(obj_updater);   // For pets
 
-    for (Transport* m_Transport : m_transports)
-        m_Transport->Update(t_diff);
+    for (m_transportsIterator = m_transports.begin(); m_transportsIterator != m_transports.end();)
+    {
+        Transport* transport = *m_transportsIterator;
+        ++m_transportsIterator;
+        transport->Update(t_diff);
+    }
 
     // the player iterator is stored in the map object
     // to make sure calls to Map::Remove don't invalidate it
     {
+#ifdef BUILD_METRICS
         uint32 updatedSessions = 0;
-
         metric::duration<std::chrono::milliseconds> sessions_meas("map.update.session", {
             { "map_id", std::to_string(i_id) },
             { "instance_id", std::to_string(i_InstanceId) },
             });
+#endif
 
         for (m_mapRefIter = m_mapRefManager.begin(); m_mapRefIter != m_mapRefManager.end(); ++m_mapRefIter)
         {
@@ -667,11 +704,13 @@ void Map::Update(const uint32& t_diff)
             // Update session first
             WorldSession* pSession = player->GetSession();
             pSession->UpdateMap(t_diff);
-
+#ifdef BUILD_METRICS
             ++updatedSessions;
+#endif
         }
-
+#ifdef BUILD_METRICS
         sessions_meas.add_field("count", std::to_string(static_cast<int32>(updatedSessions)));
+#endif
     }
 
     /// update players at tick
@@ -760,7 +799,9 @@ void Map::Update(const uint32& t_diff)
         ++count;
     }
 
+#ifdef BUILD_METRICS
     meas.add_field("count", std::to_string(static_cast<int32>(count)));
+#endif
 
     // Send world objects and item update field changes
     SendObjectUpdates();
@@ -1270,7 +1311,7 @@ uint32 Map::GetPlayersCountExceptGMs() const
 {
     uint32 count = 0;
     for (const auto& itr : m_mapRefManager)
-        if (!itr.getSource()->isGameMaster())
+        if (!itr.getSource()->IsGameMaster())
             ++count;
     return count;
 }
@@ -1853,7 +1894,7 @@ bool BattleGroundMap::Add(Player* player)
 
 void BattleGroundMap::Remove(Player* player, bool remove)
 {
-    DETAIL_LOG("MAP: Removing player '%s' from bg '%u' of map '%s' before relocating to other map", player->GetName(), GetInstanceId(), GetMapName());
+    DETAIL_FILTER_LOG(LOG_FILTER_PLAYER_MOVES, "MAP: Removing player '%s' from bg '%u' of map '%s' before relocating to other map", player->GetName(), GetInstanceId(), GetMapName());
     Map::Remove(player, remove);
 }
 
@@ -1900,7 +1941,7 @@ bool Map::ScriptsStart(ScriptMapMapName const& scripts, uint32 id, Object* sourc
                                                execParams & SCRIPT_EXEC_PARAM_UNIQUE_BY_SOURCE ? sourceGuid : ObjectGuid(),
                                                execParams & SCRIPT_EXEC_PARAM_UNIQUE_BY_TARGET ? targetGuid : ObjectGuid(), ownerGuid))
             {
-                DEBUG_LOG("DB-SCRIPTS: Process table `%s` id %u. Skip script as script already started for source %s, target %s - ScriptsStartParams %u", scripts.first, id, sourceGuid.GetString().c_str(), targetGuid.GetString().c_str(), execParams);
+                DETAIL_FILTER_LOG(LOG_FILTER_DB_SCRIPT, "DB-SCRIPTS: Process table `%s` id %u. Skip script as script already started for source %s, target %s - ScriptsStartParams %u", scripts.first, id, sourceGuid.GetString().c_str(), targetGuid.GetString().c_str(), execParams);
                 return true;
             }
         }

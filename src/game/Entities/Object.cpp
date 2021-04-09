@@ -380,7 +380,7 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
     {
         if (isType(TYPEMASK_GAMEOBJECT) && !((GameObject*)this)->IsTransport())
         {
-            if (((GameObject*)this)->ActivateToQuest(target) || target->isGameMaster())
+            if (((GameObject*)this)->ActivateToQuest(target) || target->IsGameMaster())
                 IsActivateToQuest = true;
 
             updateMask->SetBit(GAMEOBJECT_DYN_FLAGS);
@@ -398,7 +398,7 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
     {
         if (isType(TYPEMASK_GAMEOBJECT) && !((GameObject*)this)->IsTransport())
         {
-            if (((GameObject*)this)->ActivateToQuest(target) || target->isGameMaster())
+            if (((GameObject*)this)->ActivateToQuest(target) || target->IsGameMaster())
                 IsActivateToQuest = true;
 
             updateMask->SetBit(GAMEOBJECT_DYN_FLAGS);
@@ -535,7 +535,7 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
                     uint32 value = m_uint32Values[index];
 
                     // For gamemasters in GM mode:
-                    if (target->isGameMaster())
+                    if (target->IsGameMaster())
                     {
                         // Gamemasters should be always able to select units - remove not selectable flag:
                         value &= ~UNIT_FLAG_NOT_SELECTABLE;
@@ -2027,6 +2027,10 @@ GameObject* WorldObject::SpawnGameObject(uint32 dbGuid, Map* map)
 {
     GameObjectData const* data = sObjectMgr.GetGOData(dbGuid);
     MANGOS_ASSERT(data);
+
+    if (data->spawnMask && !map->CanSpawn(TYPEID_GAMEOBJECT, dbGuid))
+        return nullptr;
+
     GameObject* gameobject = GameObject::CreateGameObject(data->id);
     if (!gameobject->LoadFromDB(dbGuid, map, map->GenerateLocalLowGuid(HIGHGUID_GAMEOBJECT)))
     {
@@ -2052,6 +2056,9 @@ Creature* WorldObject::SpawnCreature(uint32 dbGuid, Map* map)
         sLog.outErrorDb("Creature (Entry: %u) not found in table `creature_template`, can't load. ", data->id);
         return nullptr;
     }
+
+    if (data->spawnMask && !map->CanSpawn(TYPEID_UNIT, dbGuid))
+        return nullptr;
 
     Creature* creature = new Creature;
     // DEBUG_LOG("Spawning creature %u",*itr);
@@ -2874,9 +2881,6 @@ int32 WorldObject::CalculateSpellEffectValue(Unit const* target, SpellEntry cons
         bool damage = false;
         if (uint32 aura = spellProto->EffectApplyAuraName[effect_index])
         {
-            // TODO: to be incorporated into the main per level calculation after research
-            value += int32(std::max(0, int32(unitCaster->getLevel() - spellProto->maxLevel)) * basePointsPerLevel);
-
             switch (aura)
             {
                 case SPELL_AURA_PERIODIC_DAMAGE:

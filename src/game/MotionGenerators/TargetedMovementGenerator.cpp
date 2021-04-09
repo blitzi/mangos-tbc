@@ -394,7 +394,7 @@ void ChaseMovementGenerator::DistanceYourself(Unit& owner, float distance)
 void ChaseMovementGenerator::Backpedal(Unit& owner)
 {
     // do not allow backpedalling during scripts
-    if (owner.AI()->GetCombatScriptStatus())
+    if (!owner.AI() || owner.AI()->GetCombatScriptStatus())
         return;
 
     m_closenessExpired = false;
@@ -795,6 +795,10 @@ bool FollowMovementGenerator::GetResetPosition(Unit& owner, float& x, float& y, 
 
     if (!_getOrientation(owner, o))
         o = owner.GetAngle(x, y);
+
+    // must return local coords
+    if (GenericTransport* transport = owner.GetTransport())
+        transport->CalculatePassengerOffset(x, y, z, &o);
 
     return true;
 }

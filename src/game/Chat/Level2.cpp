@@ -1371,16 +1371,16 @@ bool ChatHandler::HandleGameObjectRespawnCommand(char* args)
 
 bool ChatHandler::HandleGUIDCommand(char* /*args*/)
 {
-    ObjectGuid guid = m_session->GetPlayer()->GetSelectionGuid();
+    Creature* creature = getSelectedCreature();
 
-    if (!guid)
+    if (!creature)
     {
         SendSysMessage(LANG_NO_SELECTION);
         SetSentErrorMessage(true);
         return false;
     }
 
-    PSendSysMessage(LANG_OBJECT_GUID, guid.GetString().c_str());
+    PSendSysMessage(LANG_OBJECT_GUID, (creature->GetObjectGuid().GetString() + " DBGuid: " + std::to_string(creature->GetDbGuid())).c_str());
     return true;
 }
 
@@ -2592,6 +2592,8 @@ inline Creature* Helper_CreateWaypointFor(Creature* wpOwner, WaypointPathOrigin 
     settings.entry = VISUAL_WAYPOINT;
     settings.x = wpNode->x; settings.y = wpNode->y; settings.z = wpNode->z; settings.ori = wpNode->orientation;
     settings.activeObject = true;
+    settings.spawnDataEntry = 2;
+    settings.spawnType = TEMPSPAWN_TIMED_DESPAWN;
     settings.despawnTime = 5 * MINUTE * IN_MILLISECONDS;
 
     settings.tempSpawnMovegen = true;
@@ -3206,7 +3208,7 @@ bool ChatHandler::HandleWpShowCommand(char* args)
             return false;
         }
 
-        // player->PlayerTalkClass->SendPointOfInterest(x, y, 6, 6, 0, "First Waypoint");
+        // player->GetPlayerMenu()->SendPointOfInterest(x, y, 6, 6, 0, "First Waypoint");
         return true;
     }
 
@@ -3219,7 +3221,7 @@ bool ChatHandler::HandleWpShowCommand(char* args)
             return false;
         }
 
-        // player->PlayerTalkClass->SendPointOfInterest(x, y, 6, 6, 0, "Last Waypoint");
+        // player->GetPlayerMenu()->SendPointOfInterest(x, y, 6, 6, 0, "Last Waypoint");
         return true;
     }
 
@@ -4868,7 +4870,7 @@ bool ChatHandler::HandleMmapPathCommand(char* args)
     PSendSysMessage("end        (%.3f, %.3f, %.3f)", end.x, end.y, end.z);
     PSendSysMessage("actual end (%.3f, %.3f, %.3f)", actualEnd.x, actualEnd.y, actualEnd.z);
 
-    if (!player->isGameMaster())
+    if (!player->IsGameMaster())
         PSendSysMessage("Enable GM mode to see the path points.");
 
     for (auto& i : pointPath)

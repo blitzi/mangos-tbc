@@ -174,7 +174,7 @@ class Map : public GridRefManager<NGridType>
 
         void ResetGridExpiry(NGridType& grid, float factor = 1) const
         {
-            grid.ResetTimeTracker((time_t)((float)i_gridExpiry * factor));
+            grid.ResetTimeTracker((time_t)((double)i_gridExpiry * factor));
         }
 
         time_t GetGridExpiry(void) const { return i_gridExpiry; }
@@ -347,6 +347,8 @@ class Map : public GridRefManager<NGridType>
         void AddTransport(Transport* transport);
         void RemoveTransport(Transport* transport);
 
+        bool CanSpawn(TypeID typeId, uint32 dbGuid);
+
     private:
         void LoadMapAndVMap(int gx, int gy);
 
@@ -450,6 +452,7 @@ class Map : public GridRefManager<NGridType>
         // Transports
         typedef std::set<Transport*> TransportSet;
         TransportSet m_transports;
+        TransportSet::iterator m_transportsIterator;
 
         std::unordered_map<uint32, std::set<ObjectGuid>> m_spawnedCount;
 };

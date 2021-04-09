@@ -374,7 +374,8 @@ inline bool IsSpellSetRun(SpellEntry const* spellInfo)
 {
     switch (spellInfo->Id)
     {
-        case 39163:    // [DND]Rescue Wyvern
+        case 30445:     // Stillpine Ancestor Yor
+        case 39163:     // [DND]Rescue Wyvern
             return true;
         default:
             return false;
@@ -1133,8 +1134,6 @@ inline bool IsPositiveEffect(const SpellEntry* spellproto, SpellEffectIndex effI
             // some explicitly required dummy effect sets
             switch (spellproto->Id)
             {
-                case 28441:                                 // AB Effect 000
-                    return false;
                 case 18153:                                 // Kodo Kombobulator
                     return true;
                 default:
@@ -1924,6 +1923,12 @@ inline bool IsStackableAuraEffect(SpellEntry const* entry, SpellEntry const* ent
                 return true;
             nonmui = true;
             break;
+        case SPELL_AURA_MOD_SPELL_CRIT_CHANCE:
+        case SPELL_AURA_MOD_SPELL_HIT_CHANCE:
+            if (player && related && entry->Id == entry2->Id && entry->HasAttribute(SPELL_ATTR_PASSIVE))
+                return true; // TBC: Party auras whitelist for Totem of Wrath
+            nonmui = true;
+            break;
         case SPELL_AURA_MOD_DAMAGE_TAKEN:
         case SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN:
         case SPELL_AURA_MOD_DECREASE_SPEED: // Bonus stacking handled by core
@@ -1940,8 +1945,6 @@ inline bool IsStackableAuraEffect(SpellEntry const* entry, SpellEntry const* ent
             nonmui = true;
             break;
         case SPELL_AURA_MOD_RATING: // Whitelisted, Rejuvenation has this
-        case SPELL_AURA_MOD_SPELL_CRIT_CHANCE: // Party auras whitelist for Totem of Wrath
-        case SPELL_AURA_MOD_SPELL_HIT_CHANCE: // Party auras whitelist for Totem of Wrath
         case SPELL_AURA_SPELL_MAGNET: // Party auras whitelist for Grounding Totem
             return true; // Always stacking auras
             break;
