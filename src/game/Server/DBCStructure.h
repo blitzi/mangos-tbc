@@ -165,11 +165,6 @@ struct CharacterFacialHairStylesEntry
   //uint32 Geoset[5];                                       // 3-7
 };
 
-enum CharSectionFlags
-{
-    SECTION_FLAG_UNAVAILABLE = 0x01,
-};
-
 enum CharSectionType
 {
     SECTION_TYPE_SKIN = 0,
@@ -177,19 +172,6 @@ enum CharSectionType
     SECTION_TYPE_FACIAL_HAIR = 2,
     SECTION_TYPE_HAIR = 3,
     SECTION_TYPE_UNDERWEAR = 4
-};
-
-struct CharSectionsEntry
-{
-    //uint32 Id;
-    uint32 Race;
-    uint32 Gender;
-    uint32 BaseSection;
-    uint32 VariationIndex;
-    uint32 ColorIndex;
-    //char* TexturePath[3];
-    uint32 Flags;
-    inline bool HasFlag(CharSectionFlags flag) const { return (Flags & flag) != 0; }
 };
 
 struct ChrClassesEntry
@@ -379,7 +361,6 @@ struct EmotesTextEntry
     //          m_emoteText
 };
 
-#ifdef ENABLE_PLAYERBOTS
 /**
 * \struct EmotesTextSoundEntry
 * \brief Entry repsenting the text sound for given emote.
@@ -397,15 +378,6 @@ enum CharSectionFlags
     SECTION_FLAG_PLAYER = 0x01
 };
 
-enum CharSectionType
-{
-    SECTION_TYPE_SKIN = 0,
-    SECTION_TYPE_FACE = 1,
-    SECTION_TYPE_FACIAL_HAIR = 2,
-    SECTION_TYPE_HAIR = 3,
-    SECTION_TYPE_UNDERWEAR = 4
-};
-
 struct CharSectionsEntry
 {
     //uint32 Id;
@@ -417,7 +389,6 @@ struct CharSectionsEntry
     uint32 Color;
     uint32 Flags;
 };
-#endif
 
 struct FactionEntry
 {

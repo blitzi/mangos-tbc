@@ -89,8 +89,6 @@ DBCStorage <EmotesTextEntry> sEmotesTextStore(EmotesTextEntryfmt);
 typedef std::tuple<uint32, uint32, uint32> EmotesTextSoundKey;
 static std::map<EmotesTextSoundKey, EmotesTextSoundEntry const*> sEmotesTextSoundMap;
 DBCStorage <EmotesTextSoundEntry> sEmotesTextSoundStore(EmotesTextSoundEntryfmt);
-DBCStorage <CharSectionsEntry> sCharSectionsStore(CharSectionsEntryfmt);
-CharSectionsMap sCharSectionMap;
 #endif
 
 //DBCStorage <FactionEntry> sFactionStore(FactionEntryfmt);
@@ -291,12 +289,6 @@ void LoadDBCStores(const std::string& dataPath)
         if (CharacterFacialHairStylesEntry const* entry = sCharacterFacialHairStylesStore.LookupEntry(i))
             if (entry->RaceID && ((1 << (entry->RaceID - 1)) & RACEMASK_ALL_PLAYABLE) != 0) // ignore nonplayable races
                 sCharFacialHairMap.insert({ entry->RaceID | (entry->SexID << 8) | (entry->VariationID << 16), entry });
-
-    LoadDBC(availableDbcLocales, bar, bad_dbc_files, sCharSectionsStore, dbcPath, "CharSections.dbc");
-    for (uint32 i = 0; i < sCharSectionsStore.GetNumRows(); ++i)
-        if (CharSectionsEntry const* entry = sCharSectionsStore.LookupEntry(i))
-            if (entry->Race && ((1 << (entry->Race - 1)) & RACEMASK_ALL_PLAYABLE) != 0) //ignore Nonplayable races
-                sCharSectionMap.emplace(uint8(entry->BaseSection) | (uint8(entry->Gender) << 8) | (uint8(entry->Race) << 16), entry);
 
     LoadDBC(availableDbcLocales, bar, bad_dbc_files, sChrClassesStore,          dbcPath, "ChrClasses.dbc");
     LoadDBC(availableDbcLocales, bar, bad_dbc_files, sChrRacesStore,            dbcPath, "ChrRaces.dbc");
@@ -752,18 +744,6 @@ CharacterFacialHairStylesEntry const* GetCharFacialHairEntry(uint8 race, uint8 g
         return nullptr;
 
     return itr->second;
-}
-
-CharSectionsEntry const* GetCharSectionEntry(uint8 race, CharSectionType genType, uint8 gender, uint8 type, uint8 color)
-{
-    auto eqr = sCharSectionMap.equal_range(uint32(genType) | uint32(gender << 8) | uint32(race << 16));
-    for (auto itr = eqr.first; itr != eqr.second; ++itr)
-    {
-        if (itr->second->VariationIndex == type && itr->second->ColorIndex == color && !itr->second->HasFlag(SECTION_FLAG_UNAVAILABLE))
-            return itr->second;
-    }
-
-    return nullptr;
 }
 
 ChatChannelsEntry const* GetChatChannelsEntryFor(const std::string& name, uint32 channel_id/* = 0*/)

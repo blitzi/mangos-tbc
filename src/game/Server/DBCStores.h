@@ -55,7 +55,6 @@ ChatChannelsEntry const* GetChatChannelsEntryFor(const std::string& name, uint32
 
 bool IsTotemCategoryCompatiableWith(uint32 itemTotemCategoryId, uint32 requiredTotemCategoryId);
 CharacterFacialHairStylesEntry const* GetCharFacialHairEntry(uint8 race, uint8 gender, uint8 facialHairId);
-CharSectionsEntry const* GetCharSectionEntry(uint8 race, CharSectionType genType, uint8 gender, uint8 type, uint8 color);
 
 bool MapCoordinateVsZoneCheck(float x, float y, uint32 mapid, uint32 zone);
 bool Zone2MapCoordinates(float& x, float& y, uint32 zone);
