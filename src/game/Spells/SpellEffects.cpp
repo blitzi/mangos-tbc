@@ -9191,7 +9191,7 @@ void Spell::EffectTransmitted(SpellEffectIndex eff_idx)
 
             fz = liqData.level;
             // finally, check LoS
-            if (!m_caster->IsWithinLOS(fx, fy, fz))
+            if (!m_caster->IsWithinLOS(fx, fy, fz, false, true))
             {
                 SendCastResult(SPELL_FAILED_LINE_OF_SIGHT);
                 SendChannelUpdate(0);
