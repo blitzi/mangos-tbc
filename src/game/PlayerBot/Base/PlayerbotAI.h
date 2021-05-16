@@ -53,24 +53,6 @@ enum RacialTraits
     WILL_OF_THE_FORSAKEN_ALL       = 7744
 };
 
-enum ProfessionSpells
-{
-    ALCHEMY_1                      = 2259,
-    BLACKSMITHING_1                = 2018,
-    COOKING_1                      = 2550,
-    ENCHANTING_1                   = 7411,
-    ENGINEERING_1                  = 4036,
-    FIRST_AID_1                    = 3273,
-    FISHING_1                      = 7620,
-    HERB_GATHERING_1               = 2366,
-    JEWELCRAFTING_1                = 25229,
-    MINING_1                       = 2575,
-    SKINNING_1                     = 8613,
-    TAILORING_1                    = 3908,
-    DISENCHANTING_1                = 13262,
-    PROSPECTING_1                  = 31252
-};
-
 enum NotableItems
 {
     // Skeleton Keys
