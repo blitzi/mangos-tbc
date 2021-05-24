@@ -853,7 +853,7 @@ void PathFinder::NormalizePath()
     if (!sWorld.getConfig(CONFIG_BOOL_PATH_FIND_NORMALIZE_Z))
         return;
 
-    GenericTransport* transport;
+    GenericTransport* transport = NULL;
     if (m_sourceUnit)
         transport = m_sourceUnit->GetTransport();
 
@@ -861,7 +861,10 @@ void PathFinder::NormalizePath()
     {
         if (transport)
             transport->CalculatePassengerPosition(m_pathPoint.x, m_pathPoint.y, m_pathPoint.z);
-        m_sourceUnit->UpdateAllowedPositionZ(m_pathPoint.x, m_pathPoint.y, m_pathPoint.z);
+        
+        if(m_sourceUnit)
+            m_sourceUnit->UpdateAllowedPositionZ(m_pathPoint.x, m_pathPoint.y, m_pathPoint.z);
+
         if (transport)
             transport->CalculatePassengerOffset(m_pathPoint.x, m_pathPoint.y, m_pathPoint.z);
     }
