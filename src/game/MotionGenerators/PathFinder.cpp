@@ -33,7 +33,7 @@
 PathFinder::PathFinder() :
     m_polyLength(0), m_type(PATHFIND_BLANK),
     m_useStraightPath(false), m_forceDestination(false), m_straightLine(false), m_pointPathLimit(MAX_POINT_PATH_LENGTH), // TODO: Fix legitimate long paths
-    m_sourceUnit(nullptr), m_navMesh(nullptr), m_navMeshQuery(nullptr), m_cachedPoints(m_pointPathLimit* VERTEX_SIZE), m_pathPolyRefs(m_pointPathLimit), m_smoothPathPolyRefs(m_pointPathLimit), m_defaultMapId(0)
+    m_sourceUnit(nullptr), m_navMesh(nullptr), m_navMeshQuery(nullptr), m_cachedPoints(m_pointPathLimit* VERTEX_SIZE), m_defaultNavMeshQuery(NULL), m_pathPolyRefs(m_pointPathLimit), m_smoothPathPolyRefs(m_pointPathLimit), m_defaultMapId(0)
 {
     //MMAP::MMapManager* mmap = MMAP::MMapFactory::createOrGetMMapManager();
     //m_defaultNavMeshQuery = mmap->GetNavMeshQuery(m_sourceUnit->GetMapId(), m_sourceUnit->GetInstanceId());
@@ -44,7 +44,7 @@ PathFinder::PathFinder() :
 PathFinder::PathFinder(uint32 mapId, uint32 instanceId) :
     m_polyLength(0), m_type(PATHFIND_BLANK),
     m_useStraightPath(false), m_forceDestination(false), m_straightLine(false), m_pointPathLimit(MAX_POINT_PATH_LENGTH), // TODO: Fix legitimate long paths
-    m_sourceUnit(nullptr), m_navMesh(nullptr), m_navMeshQuery(nullptr), m_cachedPoints(m_pointPathLimit* VERTEX_SIZE), m_pathPolyRefs(m_pointPathLimit), m_smoothPathPolyRefs(m_pointPathLimit), m_defaultMapId(mapId)
+    m_sourceUnit(nullptr), m_navMesh(nullptr), m_navMeshQuery(nullptr), m_cachedPoints(m_pointPathLimit* VERTEX_SIZE), m_defaultNavMeshQuery(NULL), m_pathPolyRefs(m_pointPathLimit), m_smoothPathPolyRefs(m_pointPathLimit), m_defaultMapId(mapId)
 {
     MMAP::MMapManager* mmap = MMAP::MMapFactory::createOrGetMMapManager();
     m_defaultNavMeshQuery = mmap->GetNavMeshQuery(mapId, instanceId);
@@ -55,7 +55,7 @@ PathFinder::PathFinder(uint32 mapId, uint32 instanceId) :
 PathFinder::PathFinder(const Unit* owner) :
     m_polyLength(0), m_type(PATHFIND_BLANK),
     m_useStraightPath(false), m_forceDestination(false), m_straightLine(false), m_pointPathLimit(MAX_POINT_PATH_LENGTH), // TODO: Fix legitimate long paths
-    m_sourceUnit(owner), m_navMesh(nullptr), m_navMeshQuery(nullptr), m_cachedPoints(m_pointPathLimit* VERTEX_SIZE), m_pathPolyRefs(m_pointPathLimit), m_smoothPathPolyRefs(m_pointPathLimit), m_defaultMapId(m_sourceUnit->GetMapId())
+    m_sourceUnit(owner), m_navMesh(nullptr), m_navMeshQuery(nullptr), m_cachedPoints(m_pointPathLimit* VERTEX_SIZE), m_defaultNavMeshQuery(NULL), m_pathPolyRefs(m_pointPathLimit), m_smoothPathPolyRefs(m_pointPathLimit), m_defaultMapId(m_sourceUnit->GetMapId())
 {
     DEBUG_FILTER_LOG(LOG_FILTER_PATHFINDING, "++ PathFinder::PathInfo for %u \n", m_sourceUnit->GetGUIDLow());
 
@@ -901,13 +901,13 @@ void PathFinder::createFilter()
             includeFlags |= (NAV_GROUND | NAV_WATER);
             excludeFlags |= (NAV_MAGMA | NAV_SLIME | NAV_SLOPE);
 
-            m_filter.setAreaCost(8, 20.0f);  //Water
+            m_filter.setAreaCost(8, 2.0f);  //Water
             m_filter.setAreaCost(11, 5.0f);  //Mob proximity
             m_filter.setAreaCost(12, 20.0f); //Mob agro
         }
         else
         {
-            excludeFlags |= (NAV_GROUND | NAV_WATER | NAV_SLOPE);
+            includeFlags |= (NAV_GROUND | NAV_WATER | NAV_SLOPE);
             excludeFlags |= (NAV_MAGMA | NAV_SLIME);
         }
     }
