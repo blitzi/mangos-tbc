@@ -299,6 +299,7 @@ void WorldState::Save(SaveIds saveId)
             SaveHelper(kruulData, SAVE_ID_HIGHLORD_KRUUL);
             break;
         }
+        default: break;
     }
 }
 
@@ -1508,6 +1509,8 @@ void WorldState::StopExpansionEvent()
     {
         sGameEventMgr.StopEvent(GAME_EVENT_BEFORE_THE_STORM);
         m_darkPortalOpen = true;
+        m_darkPortalTimer = 0;
+        Save(SAVE_ID_EXPANSION_RELEASE); // save to DB right away
     }
     StartArenaSeason();
 }

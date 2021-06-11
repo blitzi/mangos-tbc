@@ -41,7 +41,11 @@
 #include "AI/ScriptDevAI/ScriptDevAIMgr.h"
 
 #ifdef BUILD_METRICS
- #include "Metric/Metric.h"
+#include "Metric/Metric.h"
+#endif
+
+#ifdef ENABLE_PLAYERBOTS
+#include "playerbot.h"
 #endif
 
 Map::~Map()
@@ -828,7 +832,36 @@ void Map::Update(const uint32& t_diff)
         i_data->Update(t_diff);
 
     m_weatherSystem->UpdateWeathers(t_diff);
+
+#ifdef ENABLE_PLAYERBOTS
+    if (IsContinent())
+    {
+        if (!HasRealPlayers())
+            m_VisibleDistance = 10.0f;
+        else
+            m_VisibleDistance = sWorld.GetMaxVisibleDistanceOnContinents();
+    }
+#endif
 }
+
+#ifdef ENABLE_PLAYERBOTS
+bool Map::HasRealPlayers()
+{
+    for (m_mapRefIter = m_mapRefManager.begin(); m_mapRefIter != m_mapRefManager.end(); ++m_mapRefIter)
+    {
+        Player* player = m_mapRefIter->getSource();
+        if (!player || !player->IsInWorld())
+            continue;
+
+        if (!player->GetPlayerbotAI() || player->GetPlayerbotAI()->isRealPlayer())
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+#endif
 
 void Map::Remove(Player* player, bool remove)
 {
