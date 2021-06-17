@@ -864,7 +864,7 @@ bool FollowMovementGenerator::Move(Unit& owner, float x, float y, float z)
         // Do a final sanity LoS check when unstucking self to prevent landing on a wrong walkable surface
         // Target needs to be able to see this new location to prevent issues and exploits
         if (i_target->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED))
-            if (!i_target->IsWithinLOS(x, y, (z + owner.GetCollisionHeight()), true))
+            if (!i_target->IsWithinLOS(x, y, (z + owner.GetCollisionHeight()), true, true))
                 i_target->GetPosition(x, y, z);
 
         if (owner.GetTypeId() == TYPEID_PLAYER)
